@@ -14,7 +14,7 @@
 //   SUPABASE_SERVICE_ROLE_KEY - Service role key
 //   VAPID_PUBLIC_KEY       - Web Push VAPID public key
 //   VAPID_PRIVATE_KEY      - Web Push VAPID private key
-//   VAPID_SUBJECT          - mailto: URI for VAPID
+//   VAPID_SUBJECT          - mailto: URI for VAPID 
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 

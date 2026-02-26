@@ -20,6 +20,8 @@ import {
   Send,
   PanelRightOpen,
   PanelRightClose,
+  AlertCircle,
+  ExternalLink,
 } from "lucide-react";
 
 // Dynamically import JitsiMeet (no SSR - it needs window/document)
@@ -55,6 +57,7 @@ export default function CallsPage() {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const fetchCalls = useCallback(() => {
@@ -131,6 +134,7 @@ export default function CallsPage() {
   const handleCreateRoom = async () => {
     if (!newRoomName.trim() || creating) return;
     setCreating(true);
+    setError(null);
     try {
       const res = await api.post<JoinCallResponse>("/api/v1/calls/rooms", {
         room_name: newRoomName.trim(),
@@ -140,7 +144,10 @@ export default function CallsPage() {
       setInCallMessages([]);
       setShowCreateModal(false);
       setNewRoomName("");
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to create room";
+      setError(msg);
+      console.error("[Calls] Create room failed:", err);
     } finally {
       setCreating(false);
     }
@@ -149,13 +156,17 @@ export default function CallsPage() {
   const handleJoinCall = async (callId: string) => {
     if (joining) return;
     setJoining(callId);
+    setError(null);
     try {
       const response = await api.post<JoinCallResponse>(
         `/api/v1/calls/rooms/${callId}/join`
       );
       setActiveCall(response);
       setInCallMessages([]);
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to join call";
+      setError(msg);
+      console.error("[Calls] Join call failed:", err);
     } finally {
       setJoining(null);
     }
@@ -165,7 +176,8 @@ export default function CallsPage() {
     if (!activeCall) return;
     try {
       await api.post(`/api/v1/calls/rooms/${activeCall.call.id}/leave`);
-    } catch {
+    } catch (err) {
+      console.error("[Calls] Leave call failed:", err);
     } finally {
       setActiveCall(null);
       setParticipants([]);
@@ -178,7 +190,8 @@ export default function CallsPage() {
     if (!activeCall) return;
     try {
       await api.post(`/api/v1/calls/rooms/${activeCall.call.id}/end`);
-    } catch {
+    } catch (err) {
+      console.error("[Calls] End call failed:", err);
     } finally {
       setActiveCall(null);
       setParticipants([]);
@@ -227,6 +240,10 @@ export default function CallsPage() {
   const canModerate = isAdmin || !!isModerator;
 
   if (activeCall) {
+    const jitsiUrl = activeCall.jitsi_jwt
+      ? `https://${activeCall.jitsi_domain}/${activeCall.jitsi_room}?jwt=${activeCall.jitsi_jwt}`
+      : `https://${activeCall.jitsi_domain}/${activeCall.jitsi_room}`;
+
     return (
       <div className="flex flex-col h-[calc(100vh-3.5rem)]">
         <div className="flex items-center justify-between px-4 py-3 border-b border-surface-700 bg-surface-900">
@@ -240,6 +257,15 @@ export default function CallsPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            <a
+              href={jitsiUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-ghost text-xs"
+              title="Open call in a new browser tab"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </a>
             <button
               onClick={() => setShowParticipants(!showParticipants)}
               className="btn-ghost md:hidden"
@@ -375,6 +401,19 @@ export default function CallsPage() {
           {t("calls.createRoom")}
         </button>
       </div>
+
+      {error && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-error-500/30 bg-error-500/10 px-4 py-3">
+          <AlertCircle className="h-5 w-5 text-error-400 flex-shrink-0" />
+          <p className="text-sm text-error-300 flex-1">{error}</p>
+          <button
+            onClick={() => setError(null)}
+            className="text-error-400 hover:text-error-300"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-20">

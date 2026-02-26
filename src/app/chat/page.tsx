@@ -49,16 +49,16 @@ export default function ChatPage() {
   }, [selectedGroupId]);
 
   const handleWsMessage = useCallback((data: unknown) => {
-    const msg = data as { type: string; payload: ChatMessage };
+    const msg = data as { type: string; data: ChatMessage };
     if (msg.type === "new_message") {
-      setMessages((prev) => [...prev, msg.payload]);
+      setMessages((prev) => [...prev, msg.data]);
     } else if (msg.type === "message_edited") {
       setMessages((prev) =>
-        prev.map((m) => (m.id === msg.payload.id ? msg.payload : m))
+        prev.map((m) => (m.id === msg.data.id ? { ...m, ...msg.data } : m))
       );
     } else if (msg.type === "message_deleted") {
       setMessages((prev) =>
-        prev.map((m) => (m.id === msg.payload.id ? msg.payload : m))
+        prev.map((m) => (m.id === msg.data.id ? { ...m, ...msg.data } : m))
       );
     }
   }, []);
@@ -71,15 +71,15 @@ export default function ChatPage() {
   });
 
   const handleSendMessage = (content: string, replyToId?: string) => {
-    send({ type: "send_message", payload: { content, reply_to_id: replyToId || null } });
+    send({ action: "send_message", content, reply_to_id: replyToId || null });
   };
 
   const handleEditMessage = (id: string, content: string) => {
-    send({ type: "edit_message", payload: { message_id: id, content } });
+    send({ action: "edit_message", message_id: id, content });
   };
 
   const handleDeleteMessage = (id: string) => {
-    send({ type: "delete_message", payload: { message_id: id } });
+    send({ action: "delete_message", message_id: id });
   };
 
   const handleSelectGroup = (id: string) => {

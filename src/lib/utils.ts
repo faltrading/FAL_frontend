@@ -5,8 +5,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatDate(date: string | Date, locale: string = "en") {
+export function formatDate(date: string | Date | null | undefined, locale: string = "en") {
+  if (!date) return "—";
   const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "—";
   return d.toLocaleDateString(locale === "it" ? "it-IT" : "en-US", {
     year: "numeric",
     month: "short",
@@ -14,15 +16,18 @@ export function formatDate(date: string | Date, locale: string = "en") {
   });
 }
 
-export function formatTime(date: string | Date, locale: string = "en") {
+export function formatTime(date: string | Date | null | undefined, locale: string = "en") {
+  if (!date) return "—";
   const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "—";
   return d.toLocaleTimeString(locale === "it" ? "it-IT" : "en-US", {
     hour: "2-digit",
     minute: "2-digit",
   });
 }
 
-export function formatDateTime(date: string | Date, locale: string = "en") {
+export function formatDateTime(date: string | Date | null | undefined, locale: string = "en") {
+  if (!date) return "—";
   return `${formatDate(date, locale)} ${formatTime(date, locale)}`;
 }
 
@@ -49,8 +54,10 @@ export function getInitials(firstName?: string | null, lastName?: string | null,
   return "??";
 }
 
-export function timeAgo(date: string | Date, locale: string = "en") {
+export function timeAgo(date: string | Date | null | undefined, locale: string = "en") {
+  if (!date) return "—";
   const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "—";
   const now = new Date();
   const seconds = Math.floor((now.getTime() - d.getTime()) / 1000);
 

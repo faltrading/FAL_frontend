@@ -5,7 +5,8 @@ import { Send, Pencil, Trash2, Reply, X, MessageSquare, CornerDownRight } from "
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { cn, formatTime } from "@/lib/utils";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatGroup, ChatMessage } from "@/lib/types";
+import { GroupInviteCard } from "@/components/chat/GroupInviteCard";
 
 interface MessageAreaProps {
   messages: ChatMessage[];
@@ -13,6 +14,7 @@ interface MessageAreaProps {
   onSendMessage: (content: string, replyToId?: string) => void;
   onEditMessage: (id: string, content: string) => void;
   onDeleteMessage: (id: string) => void;
+  onGroupJoined?: (group: ChatGroup) => void;
 }
 
 export function MessageArea({
@@ -21,6 +23,7 @@ export function MessageArea({
   onSendMessage,
   onEditMessage,
   onDeleteMessage,
+  onGroupJoined,
 }: MessageAreaProps) {
   const { user } = useAuth();
   const { t } = useI18n();
@@ -105,6 +108,18 @@ export function MessageArea({
           }
 
           if (isAnnouncement) {
+            // Group invite cards
+            const meta = msg.metadata as Record<string, unknown> | undefined;
+            if (meta?.group_invite && onGroupJoined) {
+              return (
+                <GroupInviteCard
+                  key={msg.id}
+                  message={msg}
+                  onGroupJoined={onGroupJoined}
+                />
+              );
+            }
+
             return (
               <div
                 key={msg.id}

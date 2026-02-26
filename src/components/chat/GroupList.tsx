@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Globe, Lock, Plus, LogIn, Users, Trash2 } from "lucide-react";
+import { Search, Globe, Lock, Plus, Users, Trash2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { ChatGroup } from "@/lib/types";
@@ -11,7 +11,6 @@ interface GroupListProps {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onCreateClick: () => void;
-  onJoinClick: () => void;
   onDeleteGroup?: (id: string) => void;
   isAdmin: boolean;
 }
@@ -21,7 +20,6 @@ export function GroupList({
   selectedId,
   onSelect,
   onCreateClick,
-  onJoinClick,
   onDeleteGroup,
   isAdmin,
 }: GroupListProps) {
@@ -45,18 +43,12 @@ export function GroupList({
             className="input-field w-full pl-9"
           />
         </div>
-        <div className="flex gap-2">
-          <button onClick={onJoinClick} className="btn-secondary flex-1 text-sm">
-            <LogIn className="h-4 w-4 mr-1" />
-            {t("chat.joinByCode")}
+        {isAdmin && (
+          <button onClick={onCreateClick} className="btn-primary w-full text-sm">
+            <Plus className="h-4 w-4 mr-1" />
+            {t("chat.createGroup")}
           </button>
-          {isAdmin && (
-            <button onClick={onCreateClick} className="btn-primary flex-1 text-sm">
-              <Plus className="h-4 w-4 mr-1" />
-              {t("chat.createGroup")}
-            </button>
-          )}
-        </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto">

@@ -9,33 +9,34 @@ import type { ChatGroup, ChatMessage, GroupMember } from "@/lib/types";
 import { GroupList } from "@/components/chat/GroupList";
 import { MessageArea } from "@/components/chat/MessageArea";
 import { CreateGroupModal } from "@/components/chat/CreateGroupModal";
-import { InviteUserModal } from "@/components/chat/InviteUserModal";
-import { X, ArrowLeft, LogIn, UserPlus, Link2 } from "lucide-react";
+import { ArrowLeft, LogOut, UserMinus, Users } from "lucide-react";
 
 const WS_CHAT_URL = process.env.NEXT_PUBLIC_WS_CHAT_URL || "";
 
 export default function ChatPage() {
-  const { token, isAdmin } = useAuth();
+  const { token, isAdmin, user } = useAuth();
   const { t } = useI18n();
   const [groups, setGroups] = useState<ChatGroup[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [, setMembers] = useState<GroupMember[]>([]);
-  const [showJoinModal, setShowJoinModal] = useState(false);
-  const [inviteCode, setInviteCode] = useState("");
+  const [members, setMembers] = useState<GroupMember[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showMembersPanel, setShowMembersPanel] = useState(false);
   const [mobileShowMessages, setMobileShowMessages] = useState(false);
 
   const selectedGroup = groups.find((g) => g.id === selectedGroupId) ?? null;
 
-  useEffect(() => {
+  /* ─── Fetch groups ─── */
+  const loadGroups = useCallback(() => {
     api
       .get<{ groups: ChatGroup[]; total: number }>("/api/v1/chat/groups")
       .then((res) => setGroups(Array.isArray(res) ? res : res.groups ?? []))
       .catch(() => {});
   }, []);
 
+  useEffect(() => { loadGroups(); }, [loadGroups]);
+
+  /* ─── Fetch messages + members when group changes ─── */
   useEffect(() => {
     if (!selectedGroupId) {
       setMessages([]);
@@ -43,7 +44,9 @@ export default function ChatPage() {
       return;
     }
     api
-      .get<{ messages: ChatMessage[]; has_more: boolean }>(`/api/v1/chat/groups/${selectedGroupId}/messages?limit=50`)
+      .get<{ messages: ChatMessage[]; has_more: boolean }>(
+        `/api/v1/chat/groups/${selectedGroupId}/messages?limit=50`
+      )
       .then((res) => setMessages(Array.isArray(res) ? res : res.messages ?? []))
       .catch(() => {});
     api
@@ -52,6 +55,7 @@ export default function ChatPage() {
       .catch(() => {});
   }, [selectedGroupId]);
 
+  /* ─── WebSocket ─── */
   const handleWsMessage = useCallback((data: unknown) => {
     const msg = data as { type: string; data: ChatMessage };
     if (msg.type === "new_message") {
@@ -74,40 +78,28 @@ export default function ChatPage() {
     enabled: !!selectedGroupId,
   });
 
+  /* ─── Message handlers ─── */
   const handleSendMessage = (content: string, replyToId?: string) => {
     send({ action: "send_message", content, reply_to_id: replyToId || null });
   };
-
   const handleEditMessage = (id: string, content: string) => {
     send({ action: "edit_message", message_id: id, content });
   };
-
   const handleDeleteMessage = (id: string) => {
     send({ action: "delete_message", message_id: id });
   };
 
+  /* ─── Group actions ─── */
   const handleSelectGroup = (id: string) => {
     setSelectedGroupId(id);
     setMobileShowMessages(true);
-  };
-
-  const handleJoinByCode = async () => {
-    try {
-      const group = await api.post<ChatGroup>("/api/v1/chat/groups/join", {
-        invite_code: inviteCode,
-      });
-      setGroups((prev) => [...prev, group]);
-      setSelectedGroupId(group.id);
-      setShowJoinModal(false);
-      setInviteCode("");
-    } catch {
-      // silent
-    }
+    setShowMembersPanel(false);
   };
 
   const handleGroupCreated = (group: ChatGroup) => {
     setGroups((prev) => [...prev, group]);
     setSelectedGroupId(group.id);
+    setMobileShowMessages(true);
   };
 
   const handleDeleteGroup = async (groupId: string) => {
@@ -123,51 +115,43 @@ export default function ChatPage() {
     }
   };
 
-  const handleShareInviteLink = () => {
-    if (!selectedGroup || !selectedGroup.invite_code) return;
-    // Find the default (public) group to send the message in
-    const defaultGroup = groups.find((g) => g.is_default);
-    if (!defaultGroup) return;
-
-    const joinLink = `${window.location.origin}/chat?join=${selectedGroup.invite_code}`;
-    const linkMessage = `📩 ${t("chat.inviteLinkMessage")} "${selectedGroup.name}": ${joinLink}`;
-
-    // If we're currently in the default group, just send via WS
-    if (selectedGroupId === defaultGroup.id) {
-      send({ action: "send_message", content: linkMessage });
-    } else {
-      // Post via REST to the default group
-      api.post(`/api/v1/chat/groups/${defaultGroup.id}/messages`, {
-        content: linkMessage,
-      }).catch(() => {});
+  const handleLeaveGroup = async () => {
+    if (!selectedGroupId || selectedGroup?.is_default) return;
+    try {
+      await api.post(`/api/v1/chat/groups/${selectedGroupId}/leave`);
+      setGroups((prev) => prev.filter((g) => g.id !== selectedGroupId));
+      setSelectedGroupId(null);
+      setMobileShowMessages(false);
+    } catch {
+      // silent
     }
   };
 
-  // Auto-join via URL parameter
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const joinCode = params.get("join");
-    if (joinCode) {
-      api.post<ChatGroup>("/api/v1/chat/groups/join", { invite_code: joinCode })
-        .then((group) => {
-          setGroups((prev) => {
-            if (prev.find((g) => g.id === group.id)) return prev;
-            return [...prev, group];
-          });
-          setSelectedGroupId(group.id);
-          setMobileShowMessages(true);
-          // Clean URL
-          window.history.replaceState({}, "", window.location.pathname);
-        })
-        .catch(() => {
-          window.history.replaceState({}, "", window.location.pathname);
-        });
+  const handleKickMember = async (memberId: string) => {
+    if (!selectedGroupId) return;
+    try {
+      await api.delete(`/api/v1/chat/groups/${selectedGroupId}/members/${memberId}`);
+      setMembers((prev) => prev.filter((m) => m.user_id !== memberId));
+    } catch {
+      // silent
     }
-  }, []);
+  };
+
+  /** Called when user joins a group via the invite card in the chat */
+  const handleGroupJoined = (group: ChatGroup) => {
+    setGroups((prev) => {
+      if (prev.find((g) => g.id === group.id)) return prev;
+      return [...prev, group];
+    });
+    setSelectedGroupId(group.id);
+    setMobileShowMessages(true);
+    // Reload groups to get fresh data
+    loadGroups();
+  };
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)]">
+      {/* ── Sidebar ── */}
       <div
         className={`w-full md:w-80 md:block flex-shrink-0 border-r border-surface-700 ${
           mobileShowMessages ? "hidden" : "block"
@@ -178,12 +162,12 @@ export default function ChatPage() {
           selectedId={selectedGroupId}
           onSelect={handleSelectGroup}
           onCreateClick={() => setShowCreateModal(true)}
-          onJoinClick={() => setShowJoinModal(true)}
           onDeleteGroup={handleDeleteGroup}
           isAdmin={isAdmin}
         />
       </div>
 
+      {/* ── Main panel ── */}
       <div
         className={`flex-1 flex flex-col min-w-0 ${
           mobileShowMessages ? "block" : "hidden md:flex"
@@ -203,97 +187,91 @@ export default function ChatPage() {
           {connected && (
             <span className="h-2 w-2 rounded-full bg-success-400 shrink-0" />
           )}
-          {/* Admin actions for non-default groups */}
-          {isAdmin && selectedGroup && !selectedGroup.is_default && (
+
+          {/* Actions for non-default groups */}
+          {selectedGroup && !selectedGroup.is_default && (
             <div className="flex items-center gap-1 shrink-0">
+              {/* Members panel toggle */}
               <button
-                onClick={() => setShowInviteModal(true)}
+                onClick={() => setShowMembersPanel((v) => !v)}
                 className="p-1.5 rounded text-surface-400 hover:text-brand-400 hover:bg-surface-800 transition-colors"
-                title={t("chat.inviteUser")}
+                title={t("chat.members")}
               >
-                <UserPlus className="h-4 w-4" />
+                <Users className="h-4 w-4" />
               </button>
+              {/* Leave group */}
               <button
-                onClick={handleShareInviteLink}
-                className="p-1.5 rounded text-surface-400 hover:text-brand-400 hover:bg-surface-800 transition-colors"
-                title={t("chat.shareInviteLink")}
+                onClick={handleLeaveGroup}
+                className="p-1.5 rounded text-surface-400 hover:text-error-400 hover:bg-surface-800 transition-colors"
+                title={t("chat.leaveGroup")}
               >
-                <Link2 className="h-4 w-4" />
+                <LogOut className="h-4 w-4" />
               </button>
             </div>
           )}
         </div>
 
-        <MessageArea
-          messages={messages}
-          groupId={selectedGroupId}
-          onSendMessage={handleSendMessage}
-          onEditMessage={handleEditMessage}
-          onDeleteMessage={handleDeleteMessage}
-        />
-      </div>
-
-      {showJoinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="card max-w-sm w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-surface-100">
-                {t("chat.joinByCode")}
-              </h2>
-              <button
-                onClick={() => {
-                  setShowJoinModal(false);
-                  setInviteCode("");
-                }}
-                className="text-surface-400 hover:text-surface-100"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <input
-              type="text"
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value)}
-              placeholder={t("chat.inviteCodePlaceholder")}
-              className="input-field w-full mb-4"
+        <div className="flex-1 flex min-h-0">
+          {/* Messages */}
+          <div className="flex-1 flex flex-col min-w-0">
+            <MessageArea
+              messages={messages}
+              groupId={selectedGroupId}
+              onSendMessage={handleSendMessage}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={handleDeleteMessage}
+              onGroupJoined={handleGroupJoined}
             />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setShowJoinModal(false);
-                  setInviteCode("");
-                }}
-                className="btn-ghost"
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                onClick={handleJoinByCode}
-                disabled={!inviteCode.trim()}
-                className="btn-primary"
-              >
-                <LogIn className="h-4 w-4 mr-1" />
-                {t("chat.join")}
-              </button>
-            </div>
           </div>
+
+          {/* Members side panel */}
+          {showMembersPanel && selectedGroup && !selectedGroup.is_default && (
+            <div className="w-56 border-l border-surface-700 bg-surface-900 flex flex-col hidden md:flex">
+              <div className="px-3 py-2 border-b border-surface-700">
+                <h3 className="text-xs font-semibold text-surface-400 uppercase tracking-wide">
+                  {t("chat.members")} ({members.length})
+                </h3>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {members.map((m) => (
+                  <div
+                    key={m.id}
+                    className="flex items-center gap-2 px-3 py-2 hover:bg-surface-800 transition-colors group/member"
+                  >
+                    <div className="h-7 w-7 rounded-full bg-surface-700 flex items-center justify-center text-[10px] font-medium text-surface-300 shrink-0">
+                      {m.username.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs text-surface-200 truncate block">
+                        {m.username}
+                      </span>
+                      {m.role === "admin" && (
+                        <span className="text-[10px] text-brand-400">Admin</span>
+                      )}
+                    </div>
+                    {/* Kick button for admin (can't kick yourself) */}
+                    {isAdmin && m.user_id !== user?.id && m.role !== "admin" && (
+                      <button
+                        onClick={() => handleKickMember(m.user_id)}
+                        className="p-1 text-surface-500 hover:text-error-400 rounded opacity-0 group-hover/member:opacity-100 transition-opacity"
+                        title={t("chat.kickMember")}
+                      >
+                        <UserMinus className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       <CreateGroupModal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreated={handleGroupCreated}
       />
-
-      {selectedGroup && (
-        <InviteUserModal
-          open={showInviteModal}
-          groupId={selectedGroup.id}
-          groupName={selectedGroup.name}
-          onClose={() => setShowInviteModal(false)}
-        />
-      )}
     </div>
   );
 }

@@ -54,6 +54,7 @@ export interface ChatMessage {
   reply_to_id: string | null;
   reply_to_content: string | null;
   reply_to_username: string | null;
+  metadata: Record<string, unknown>;
   is_edited: boolean;
   is_deleted: boolean;
   created_at: string;

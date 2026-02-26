@@ -22,12 +22,13 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
-  if (url.pathname.startsWith("/api")) {
-    event.respondWith(
-      fetch(request).catch(() => caches.match(request))
-    );
-    return;
-  }
+
+  // Never intercept cross-origin requests (API gateway, Jitsi, etc.)
+  // Let them pass through directly to avoid CORS issues
+  if (url.origin !== self.location.origin) return;
+
+  // Don't intercept API routes even on same origin
+  if (url.pathname.startsWith("/api")) return;
 
   event.respondWith(
     caches.match(request).then((cached) => {
@@ -36,7 +37,9 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         return response;
       });
-      return cached || fetched.catch(() => caches.match("/offline"));
+      return cached || fetched.catch(() =>
+        caches.match("/offline").then((r) => r || new Response("Offline", { status: 503 }))
+      );
     })
   );
 });

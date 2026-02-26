@@ -115,7 +115,7 @@ export function GroupInviteCard({ message, onGroupJoined }: GroupInviteCardProps
           <div className="flex items-center justify-between pt-1">
             <span className="text-xs text-surface-500 flex items-center gap-1">
               <Users className="h-3.5 w-3.5" />
-              {t("chat.createdByUser", { user: message.sender_username ?? "" })}
+              {t("chat.createdBy")} {message.sender_username ?? t("chat.unknownUser")}
             </span>
 
             {canJoin && (

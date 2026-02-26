@@ -35,7 +35,8 @@
     "description": "Description",
     "category": "Category",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "optional": "optional"
   },
   "nav": {
     "home": "Home",
@@ -126,7 +127,23 @@
     "edited": "edited",
     "editing": "Editing message...",
     "replyingTo": "Replying to",
-    "messagePlaceholder": "Type a message..."
+    "messagePlaceholder": "Type a message...",
+    "createPrivateGroup": "Create Private Group",
+    "createGroup": "Create group",
+    "groupNamePlaceholder": "Enter group name",
+    "descriptionPlaceholder": "Short description (optional)",
+    "deleteGroup": "Delete group",
+    "confirmDeleteGroup": "Are you sure you want to delete this group?",
+    "inviteUser": "Invite User",
+    "searchUserPlaceholder": "Search by username...",
+    "searchUserHint": "Type at least 2 characters to search",
+    "noUsersFound": "No users found",
+    "shareInviteLink": "Share invite link in public chat",
+    "inviteLinkMessage": "Join the group",
+    "searchGroups": "Search groups...",
+    "noGroups": "No groups found",
+    "inviteCodePlaceholder": "Enter invite code",
+    "joinByCode": "Join by code"
   },
   "calls": {
     "title": "Call Rooms",

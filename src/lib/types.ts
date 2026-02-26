@@ -27,8 +27,9 @@ export interface ChatGroup {
   id: string;
   name: string;
   description: string | null;
+  is_default: boolean;
   is_public: boolean;
-  max_members: number;
+  member_count: number;
   invite_code: string | null;
   created_by: string;
   created_at: string;

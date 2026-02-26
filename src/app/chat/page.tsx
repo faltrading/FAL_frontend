@@ -9,7 +9,8 @@ import type { ChatGroup, ChatMessage, GroupMember } from "@/lib/types";
 import { GroupList } from "@/components/chat/GroupList";
 import { MessageArea } from "@/components/chat/MessageArea";
 import { CreateGroupModal } from "@/components/chat/CreateGroupModal";
-import { X, ArrowLeft, LogIn } from "lucide-react";
+import { InviteUserModal } from "@/components/chat/InviteUserModal";
+import { X, ArrowLeft, LogIn, UserPlus, Link2 } from "lucide-react";
 
 const WS_CHAT_URL = process.env.NEXT_PUBLIC_WS_CHAT_URL || "";
 
@@ -23,7 +24,10 @@ export default function ChatPage() {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [mobileShowMessages, setMobileShowMessages] = useState(false);
+
+  const selectedGroup = groups.find((g) => g.id === selectedGroupId) ?? null;
 
   useEffect(() => {
     api
@@ -106,6 +110,62 @@ export default function ChatPage() {
     setSelectedGroupId(group.id);
   };
 
+  const handleDeleteGroup = async (groupId: string) => {
+    try {
+      await api.delete(`/api/v1/chat/groups/${groupId}`);
+      setGroups((prev) => prev.filter((g) => g.id !== groupId));
+      if (selectedGroupId === groupId) {
+        setSelectedGroupId(null);
+        setMobileShowMessages(false);
+      }
+    } catch {
+      // silent
+    }
+  };
+
+  const handleShareInviteLink = () => {
+    if (!selectedGroup || !selectedGroup.invite_code) return;
+    // Find the default (public) group to send the message in
+    const defaultGroup = groups.find((g) => g.is_default);
+    if (!defaultGroup) return;
+
+    const joinLink = `${window.location.origin}/chat?join=${selectedGroup.invite_code}`;
+    const linkMessage = `📩 ${t("chat.inviteLinkMessage")} "${selectedGroup.name}": ${joinLink}`;
+
+    // If we're currently in the default group, just send via WS
+    if (selectedGroupId === defaultGroup.id) {
+      send({ action: "send_message", content: linkMessage });
+    } else {
+      // Post via REST to the default group
+      api.post(`/api/v1/chat/groups/${defaultGroup.id}/messages`, {
+        content: linkMessage,
+      }).catch(() => {});
+    }
+  };
+
+  // Auto-join via URL parameter
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const joinCode = params.get("join");
+    if (joinCode) {
+      api.post<ChatGroup>("/api/v1/chat/groups/join", { invite_code: joinCode })
+        .then((group) => {
+          setGroups((prev) => {
+            if (prev.find((g) => g.id === group.id)) return prev;
+            return [...prev, group];
+          });
+          setSelectedGroupId(group.id);
+          setMobileShowMessages(true);
+          // Clean URL
+          window.history.replaceState({}, "", window.location.pathname);
+        })
+        .catch(() => {
+          window.history.replaceState({}, "", window.location.pathname);
+        });
+    }
+  }, []);
+
   return (
     <div className="flex h-[calc(100vh-3.5rem)]">
       <div
@@ -119,6 +179,7 @@ export default function ChatPage() {
           onSelect={handleSelectGroup}
           onCreateClick={() => setShowCreateModal(true)}
           onJoinClick={() => setShowJoinModal(true)}
+          onDeleteGroup={handleDeleteGroup}
           isAdmin={isAdmin}
         />
       </div>
@@ -128,20 +189,41 @@ export default function ChatPage() {
           mobileShowMessages ? "block" : "hidden md:flex"
         }`}
       >
-        <div className="md:hidden flex items-center gap-2 px-3 py-2 border-b border-surface-700 bg-surface-900">
+        {/* Header bar */}
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-surface-700 bg-surface-900">
           <button
             onClick={() => setMobileShowMessages(false)}
-            className="p-1 rounded text-surface-400 hover:text-surface-100"
+            className="p-1 rounded text-surface-400 hover:text-surface-100 md:hidden"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <span className="text-sm font-medium text-surface-200">
-            {groups.find((g) => g.id === selectedGroupId)?.name || t("chat.title")}
+          <span className="text-sm font-medium text-surface-200 truncate flex-1">
+            {selectedGroup?.name || t("chat.title")}
           </span>
           {connected && (
-            <span className="ml-auto h-2 w-2 rounded-full bg-success-400" />
+            <span className="h-2 w-2 rounded-full bg-success-400 shrink-0" />
+          )}
+          {/* Admin actions for non-default groups */}
+          {isAdmin && selectedGroup && !selectedGroup.is_default && (
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => setShowInviteModal(true)}
+                className="p-1.5 rounded text-surface-400 hover:text-brand-400 hover:bg-surface-800 transition-colors"
+                title={t("chat.inviteUser")}
+              >
+                <UserPlus className="h-4 w-4" />
+              </button>
+              <button
+                onClick={handleShareInviteLink}
+                className="p-1.5 rounded text-surface-400 hover:text-brand-400 hover:bg-surface-800 transition-colors"
+                title={t("chat.shareInviteLink")}
+              >
+                <Link2 className="h-4 w-4" />
+              </button>
+            </div>
           )}
         </div>
+
         <MessageArea
           messages={messages}
           groupId={selectedGroupId}
@@ -203,6 +285,15 @@ export default function ChatPage() {
         onClose={() => setShowCreateModal(false)}
         onCreated={handleGroupCreated}
       />
+
+      {selectedGroup && (
+        <InviteUserModal
+          open={showInviteModal}
+          groupId={selectedGroup.id}
+          groupName={selectedGroup.name}
+          onClose={() => setShowInviteModal(false)}
+        />
+      )}
     </div>
   );
 }

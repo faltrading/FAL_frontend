@@ -35,7 +35,8 @@
     "description": "Descrizione",
     "category": "Categoria",
     "yes": "Si",
-    "no": "No"
+    "no": "No",
+    "optional": "opzionale"
   },
   "nav": {
     "home": "Home",
@@ -126,7 +127,23 @@
     "edited": "modificato",
     "editing": "Modifica messaggio...",
     "replyingTo": "In risposta a",
-    "messagePlaceholder": "Scrivi un messaggio..."
+    "messagePlaceholder": "Scrivi un messaggio...",
+    "createPrivateGroup": "Crea Gruppo Privato",
+    "createGroup": "Crea gruppo",
+    "groupNamePlaceholder": "Nome del gruppo",
+    "descriptionPlaceholder": "Breve descrizione (opzionale)",
+    "deleteGroup": "Elimina gruppo",
+    "confirmDeleteGroup": "Sei sicuro di voler eliminare questo gruppo?",
+    "inviteUser": "Invita Utente",
+    "searchUserPlaceholder": "Cerca per username...",
+    "searchUserHint": "Digita almeno 2 caratteri per cercare",
+    "noUsersFound": "Nessun utente trovato",
+    "shareInviteLink": "Condividi link invito nella chat pubblica",
+    "inviteLinkMessage": "Unisciti al gruppo",
+    "searchGroups": "Cerca gruppi...",
+    "noGroups": "Nessun gruppo trovato",
+    "inviteCodePlaceholder": "Inserisci codice invito",
+    "joinByCode": "Unisciti con codice"
   },
   "calls": {
     "title": "Stanze Chiamata",

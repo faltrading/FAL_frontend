@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Globe, Lock, Plus, LogIn, Users } from "lucide-react";
+import { Search, Globe, Lock, Plus, LogIn, Users, Trash2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { ChatGroup } from "@/lib/types";
@@ -12,6 +12,7 @@ interface GroupListProps {
   onSelect: (id: string) => void;
   onCreateClick: () => void;
   onJoinClick: () => void;
+  onDeleteGroup?: (id: string) => void;
   isAdmin: boolean;
 }
 
@@ -21,6 +22,7 @@ export function GroupList({
   onSelect,
   onCreateClick,
   onJoinClick,
+  onDeleteGroup,
   isAdmin,
 }: GroupListProps) {
   const { t } = useI18n();
@@ -70,7 +72,7 @@ export function GroupList({
                 key={group.id}
                 onClick={() => onSelect(group.id)}
                 className={cn(
-                  "w-full text-left px-4 py-3 flex items-center gap-3 transition-colors",
+                  "w-full text-left px-4 py-3 flex items-center gap-3 transition-colors group/item",
                   isSelected
                     ? "bg-surface-700 border-l-2 border-brand-400"
                     : "hover:bg-surface-800 border-l-2 border-transparent"
@@ -81,7 +83,7 @@ export function GroupList({
                     <span className="text-sm font-medium text-surface-100 truncate">
                       {group.name}
                     </span>
-                    {group.is_public ? (
+                    {group.is_public || group.is_default ? (
                       <Globe className="h-3.5 w-3.5 text-surface-500 flex-shrink-0" />
                     ) : (
                       <Lock className="h-3.5 w-3.5 text-surface-500 flex-shrink-0" />
@@ -93,9 +95,23 @@ export function GroupList({
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-1 text-xs text-surface-500 flex-shrink-0">
-                  <Users className="h-3.5 w-3.5" />
-                  <span>{group.max_members}</span>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <div className="flex items-center gap-1 text-xs text-surface-500">
+                    <Users className="h-3.5 w-3.5" />
+                    <span>{group.member_count ?? 0}</span>
+                  </div>
+                  {isAdmin && !group.is_default && onDeleteGroup && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteGroup(group.id);
+                      }}
+                      className="p-1 text-surface-500 hover:text-error-400 rounded opacity-0 group-hover/item:opacity-100 transition-opacity"
+                      title={t("chat.deleteGroup")}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               </button>
             );

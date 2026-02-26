@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import dynamic from "next/dynamic";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { api } from "@/lib/api";
@@ -20,6 +21,16 @@ import {
   PanelRightOpen,
   PanelRightClose,
 } from "lucide-react";
+
+// Dynamically import JitsiMeet (no SSR - it needs window/document)
+const JitsiMeet = dynamic(() => import("@/components/calls/JitsiMeet"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[60vh] rounded-xl border border-surface-700 bg-surface-950 flex items-center justify-center">
+      <div className="h-8 w-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  ),
+});
 
 const WS_CALL_URL = process.env.NEXT_PUBLIC_WS_CALL_URL || "";
 
@@ -76,13 +87,28 @@ export default function CallsPage() {
   }, [fetchParticipants, activeCall]);
 
   const handleWsMessage = useCallback((data: unknown) => {
-    const msg = data as { type: string; payload: { username: string; text: string } };
-    if (msg.type === "chat_message") {
+    const msg = data as {
+      type: string;
+      payload?: { username: string; text: string };
+      data?: { sender_username: string; content: string };
+    };
+    if (msg.type === "chat_message" && msg.payload) {
       setInCallMessages((prev) => [
         ...prev,
         {
-          username: msg.payload.username,
-          text: msg.payload.text,
+          username: msg.payload!.username,
+          text: msg.payload!.text,
+          time: new Date().toISOString(),
+        },
+      ]);
+    }
+    // Also handle legacy backend format
+    if (msg.type === "new_message" && msg.data) {
+      setInCallMessages((prev) => [
+        ...prev,
+        {
+          username: msg.data!.sender_username,
+          text: msg.data!.content,
           time: new Date().toISOString(),
         },
       ]);
@@ -106,11 +132,12 @@ export default function CallsPage() {
     if (!newRoomName.trim() || creating) return;
     setCreating(true);
     try {
-      const res = await api.post<{ call: Call; jitsi_jwt: string; jitsi_room_url: string }>("/api/v1/calls/rooms", {
+      const res = await api.post<JoinCallResponse>("/api/v1/calls/rooms", {
         room_name: newRoomName.trim(),
       });
-      const call = "call" in res ? res.call : res;
-      setCalls((prev) => [call as Call, ...prev]);
+      // Auto-join: the creator is already a participant, so enter the call view
+      setActiveCall(res);
+      setInCallMessages([]);
       setShowCreateModal(false);
       setNewRoomName("");
     } catch {
@@ -185,6 +212,12 @@ export default function CallsPage() {
     setChatInput("");
   };
 
+  // Called when user hangs up from within the Jitsi UI
+  const handleJitsiClose = useCallback(() => {
+    handleLeaveCall();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCall]);
+
   const isModerator =
     activeCall &&
     participants.find(
@@ -232,11 +265,12 @@ export default function CallsPage() {
 
         <div className="flex flex-1 min-h-0">
           <div className="flex-1 flex flex-col min-w-0 p-4 gap-4">
-            <iframe
-              src={`https://${activeCall.jitsi_domain}/${activeCall.jitsi_room}?jwt=${activeCall.jitsi_jwt}`}
-              className="w-full h-[60vh] rounded-xl border border-surface-700"
-              allow="camera; microphone; display-capture; autoplay; clipboard-write"
-              allowFullScreen
+            <JitsiMeet
+              domain={activeCall.jitsi_domain}
+              roomName={activeCall.jitsi_room}
+              jwt={activeCall.jitsi_jwt || undefined}
+              displayName={user?.username || "Guest"}
+              onReadyToClose={handleJitsiClose}
             />
 
             <div className="card flex flex-col flex-1 min-h-[120px]">
@@ -378,9 +412,11 @@ export default function CallsPage() {
                   <Users className="h-3.5 w-3.5" />
                   <span>{call.creator_username}</span>
                 </div>
-                <div>
-                  {t("calls.maxParticipants")}: {call.max_participants}
-                </div>
+                {call.max_participants && (
+                  <div>
+                    {t("calls.maxParticipants")}: {call.max_participants}
+                  </div>
+                )}
                 <div>{formatDateTime(call.started_at, locale)}</div>
               </div>
               {call.status === "active" && (

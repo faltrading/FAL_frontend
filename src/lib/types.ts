@@ -69,15 +69,18 @@ export interface Call {
   room_name: string;
   created_by: string;
   creator_username: string;
+  is_active?: boolean;
   status: "active" | "ended";
-  started_at: string;
+  started_at: string | null;
+  created_at?: string;
   ended_at: string | null;
-  max_participants: number;
+  max_participants: number | null;
+  participant_count?: number;
 }
 
 export interface CallParticipant {
   id: string;
-  call_id: string;
+  call_id?: string;
   user_id: string;
   username: string;
   role: "moderator" | "participant";
@@ -91,6 +94,7 @@ export interface JoinCallResponse {
   jitsi_jwt: string;
   jitsi_room: string;
   jitsi_domain: string;
+  jitsi_room_url?: string;
 }
 
 export interface CalendarSettings {

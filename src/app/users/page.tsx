@@ -174,14 +174,15 @@ function CalendarSettingsTab() {
     setBatchCreating(true);
     setBatchMessage("");
     try {
-      const result = await api.post<{ created_count: number }>("/api/v1/calendar/slots/batch", {
+      const result = await api.post<Record<string, unknown>[]>("/api/v1/calendar/slots/batch", {
         start_date: startDate,
         end_date: endDate,
         start_time: startTime,
         end_time: endTime,
         exclude_weekends: excludeWeekends,
       });
-      setBatchMessage(`${t("users.slotsCreated")}: ${result.created_count}`);
+      const count = Array.isArray(result) ? result.length : (result as unknown as { created_count: number }).created_count;
+      setBatchMessage(`${t("users.slotsCreated")}: ${count}`);
     } catch {
     } finally {
       setBatchCreating(false);

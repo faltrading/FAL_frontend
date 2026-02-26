@@ -53,7 +53,7 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    fetch("https://nfs.faireconomy.media/ff_calendar_thisweek.json")
+    fetch("/api/proxy/news")
       .then((res) => res.json())
       .then((data: NewsEvent[]) => {
         const now = new Date();

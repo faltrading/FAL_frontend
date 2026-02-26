@@ -18,7 +18,7 @@ import {
 const CURRENCIES = ["USD", "EUR", "GBP", "JPY", "AUD", "CAD", "CHF", "NZD"];
 const IMPACTS = ["High", "Medium", "Low"];
 const NOTIFY_OPTIONS = [5, 10, 15, 30, 60];
-const NEWS_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json";
+const NEWS_URL = "/api/proxy/news";
 
 interface NotificationPrefs {
   enabled: boolean;

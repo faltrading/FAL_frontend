@@ -345,10 +345,10 @@ function TradesTab({ connection }: { connection: BrokerConnection | null }) {
     if (!connection) return;
     setLoading(true);
     api
-      .get<BrokerTrade[]>(
+      .get<{ trades: BrokerTrade[]; total: number }>(
         `/api/v1/broker/connections/${connection.id}/trades`
       )
-      .then(setTrades)
+      .then((res) => setTrades(Array.isArray(res) ? res : res.trades ?? []))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [connection]);
@@ -494,10 +494,10 @@ function CalendarTab({
     if (!connection) return;
     setLoading(true);
     api
-      .get<DailyStat[]>(
+      .get<{ stats: DailyStat[]; total: number }>(
         `/api/v1/broker/connections/${connection.id}/daily-stats`
       )
-      .then(setStats)
+      .then((res) => setStats(Array.isArray(res) ? res : res.stats ?? []))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [connection]);
@@ -887,10 +887,10 @@ export default function JournalPage() {
 
   const fetchConnections = useCallback(async () => {
     try {
-      const data = await api.get<BrokerConnection[]>(
+      const data = await api.get<{ connections: BrokerConnection[]; total: number }>(
         "/api/v1/broker/connections"
       );
-      setConnections(data);
+      setConnections(Array.isArray(data) ? data : data.connections ?? []);
     } catch {
     } finally {
       setLoading(false);

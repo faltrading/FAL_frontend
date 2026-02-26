@@ -27,8 +27,8 @@ export default function ChatPage() {
 
   useEffect(() => {
     api
-      .get<ChatGroup[]>("/api/v1/chat/groups")
-      .then(setGroups)
+      .get<{ groups: ChatGroup[]; total: number }>("/api/v1/chat/groups")
+      .then((res) => setGroups(Array.isArray(res) ? res : res.groups ?? []))
       .catch(() => {});
   }, []);
 
@@ -39,12 +39,12 @@ export default function ChatPage() {
       return;
     }
     api
-      .get<ChatMessage[]>(`/api/v1/chat/groups/${selectedGroupId}/messages?limit=50`)
-      .then(setMessages)
+      .get<{ messages: ChatMessage[]; has_more: boolean }>(`/api/v1/chat/groups/${selectedGroupId}/messages?limit=50`)
+      .then((res) => setMessages(Array.isArray(res) ? res : res.messages ?? []))
       .catch(() => {});
     api
       .get<GroupMember[]>(`/api/v1/chat/groups/${selectedGroupId}/members`)
-      .then(setMembers)
+      .then((res) => setMembers(Array.isArray(res) ? res : res))
       .catch(() => {});
   }, [selectedGroupId]);
 

@@ -48,8 +48,8 @@ export default function CallsPage() {
 
   const fetchCalls = useCallback(() => {
     api
-      .get<Call[]>("/api/v1/calls/rooms")
-      .then(setCalls)
+      .get<{ calls: Call[]; total: number }>("/api/v1/calls/rooms")
+      .then((res) => setCalls(Array.isArray(res) ? res : res.calls ?? []))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -106,10 +106,11 @@ export default function CallsPage() {
     if (!newRoomName.trim() || creating) return;
     setCreating(true);
     try {
-      const call = await api.post<Call>("/api/v1/calls/rooms", {
+      const res = await api.post<{ call: Call; jitsi_jwt: string; jitsi_room_url: string }>("/api/v1/calls/rooms", {
         room_name: newRoomName.trim(),
       });
-      setCalls((prev) => [call, ...prev]);
+      const call = "call" in res ? res.call : res;
+      setCalls((prev) => [call as Call, ...prev]);
       setShowCreateModal(false);
       setNewRoomName("");
     } catch {

@@ -146,7 +146,12 @@
     "searchUserHint": "Type at least 2 characters to search",
     "noUsersFound": "No users found",
     "anyoneCanJoin": "Anyone can join this group",
-    "onlyInvited": "Only invited members can see this"
+    "onlyInvited": "Only invited members can see this",
+    "pinMessage": "Pin message",
+    "unpinMessage": "Unpin message",
+    "pinnedMessages": "Pinned messages",
+    "pinnedBy": "Pinned by",
+    "noPinnedMessages": "No pinned messages"
   },
   "calls": {
     "title": "Call Rooms",

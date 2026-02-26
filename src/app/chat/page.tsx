@@ -9,7 +9,7 @@ import type { ChatGroup, ChatMessage, GroupMember } from "@/lib/types";
 import { GroupList } from "@/components/chat/GroupList";
 import { MessageArea } from "@/components/chat/MessageArea";
 import { CreateGroupModal } from "@/components/chat/CreateGroupModal";
-import { ArrowLeft, LogOut, UserMinus, Users } from "lucide-react";
+import { ArrowLeft, LogOut, UserMinus, Users, Pin, ChevronDown, ChevronUp } from "lucide-react";
 
 const WS_CHAT_URL = process.env.NEXT_PUBLIC_WS_CHAT_URL || "";
 
@@ -23,6 +23,7 @@ export default function ChatPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showMembersPanel, setShowMembersPanel] = useState(false);
   const [mobileShowMessages, setMobileShowMessages] = useState(false);
+  const [pinnedExpanded, setPinnedExpanded] = useState(false);
 
   const selectedGroup = groups.find((g) => g.id === selectedGroupId) ?? null;
 
@@ -68,6 +69,11 @@ export default function ChatPage() {
       setMessages((prev) =>
         prev.map((m) => (m.id === msg.data.id ? { ...m, ...msg.data } : m))
       );
+    } else if (msg.type === "message_pinned") {
+      const pinData = msg.data as unknown as { id: string; is_pinned: boolean; pinned_at: string | null; pinned_by: string | null };
+      setMessages((prev) =>
+        prev.map((m) => (m.id === pinData.id ? { ...m, is_pinned: pinData.is_pinned, pinned_at: pinData.pinned_at, pinned_by: pinData.pinned_by } : m))
+      );
     }
   }, []);
 
@@ -88,12 +94,16 @@ export default function ChatPage() {
   const handleDeleteMessage = (id: string) => {
     send({ action: "delete_message", message_id: id });
   };
+  const handlePinMessage = (id: string) => {
+    send({ action: "pin_message", message_id: id });
+  };
 
   /* ─── Group actions ─── */
   const handleSelectGroup = (id: string) => {
     setSelectedGroupId(id);
     setMobileShowMessages(true);
     setShowMembersPanel(false);
+    setPinnedExpanded(false);
   };
 
   const handleGroupCreated = (group: ChatGroup) => {
@@ -211,6 +221,37 @@ export default function ChatPage() {
           )}
         </div>
 
+        {/* Pinned messages bar */}
+        {(() => {
+          const pinned = messages.filter((m) => m.is_pinned && !m.is_deleted);
+          if (pinned.length === 0) return null;
+          return (
+            <div className="border-b border-surface-700 bg-surface-800/50">
+              <button
+                onClick={() => setPinnedExpanded((v) => !v)}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-brand-400 hover:bg-surface-800 transition-colors"
+              >
+                <Pin className="h-3.5 w-3.5" />
+                <span className="font-medium">{t("chat.pinnedMessages")} ({pinned.length})</span>
+                {pinnedExpanded ? <ChevronUp className="h-3.5 w-3.5 ml-auto" /> : <ChevronDown className="h-3.5 w-3.5 ml-auto" />}
+              </button>
+              {pinnedExpanded && (
+                <div className="max-h-40 overflow-y-auto border-t border-surface-700">
+                  {pinned.map((pm) => (
+                    <div key={pm.id} className="px-3 py-1.5 hover:bg-surface-800 transition-colors flex items-start gap-2">
+                      <Pin className="h-3 w-3 text-brand-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[11px] text-brand-400 font-medium">{pm.sender_username}</span>
+                        <p className="text-xs text-surface-300 truncate">{pm.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         <div className="flex-1 flex min-h-0">
           {/* Messages */}
           <div className="flex-1 flex flex-col min-w-0">
@@ -220,6 +261,7 @@ export default function ChatPage() {
               onSendMessage={handleSendMessage}
               onEditMessage={handleEditMessage}
               onDeleteMessage={handleDeleteMessage}
+              onPinMessage={handlePinMessage}
               onGroupJoined={handleGroupJoined}
             />
           </div>

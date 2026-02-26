@@ -57,6 +57,9 @@ export interface ChatMessage {
   metadata: Record<string, unknown>;
   is_edited: boolean;
   is_deleted: boolean;
+  is_pinned: boolean;
+  pinned_at: string | null;
+  pinned_by: string | null;
   created_at: string;
   updated_at: string;
 }

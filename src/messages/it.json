@@ -146,7 +146,12 @@
     "searchUserHint": "Digita almeno 2 caratteri per cercare",
     "noUsersFound": "Nessun utente trovato",
     "anyoneCanJoin": "Chiunque puo' unirsi a questo gruppo",
-    "onlyInvited": "Solo i membri invitati possono vedere questo"
+    "onlyInvited": "Solo i membri invitati possono vedere questo",
+    "pinMessage": "Fissa messaggio",
+    "unpinMessage": "Rimuovi dai fissati",
+    "pinnedMessages": "Messaggi fissati",
+    "pinnedBy": "Fissato da",
+    "noPinnedMessages": "Nessun messaggio fissato"
   },
   "calls": {
     "title": "Stanze Chiamata",

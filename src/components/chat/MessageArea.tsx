@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Send, Pencil, Trash2, Reply, X, MessageSquare, CornerDownRight } from "lucide-react";
+import { Send, Pencil, Trash2, Reply, X, MessageSquare, CornerDownRight, Pin } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { cn, formatTime } from "@/lib/utils";
@@ -14,6 +14,7 @@ interface MessageAreaProps {
   onSendMessage: (content: string, replyToId?: string) => void;
   onEditMessage: (id: string, content: string) => void;
   onDeleteMessage: (id: string) => void;
+  onPinMessage: (id: string) => void;
   onGroupJoined?: (group: ChatGroup) => void;
 }
 
@@ -23,6 +24,7 @@ export function MessageArea({
   onSendMessage,
   onEditMessage,
   onDeleteMessage,
+  onPinMessage,
   onGroupJoined,
 }: MessageAreaProps) {
   const { user } = useAuth();
@@ -190,6 +192,15 @@ export function MessageArea({
                   <p className="text-sm text-surface-200 break-words">{msg.content}</p>
                 )}
 
+                {msg.is_pinned && !msg.is_deleted && (
+                  <div className="flex items-center gap-1 mt-1">
+                    <Pin className="h-3 w-3 text-brand-400" />
+                    <span className="text-[10px] text-brand-400 font-medium">
+                      {t("chat.pinnedBy")} {msg.pinned_by}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-1 mt-1 justify-end">
                   {msg.is_edited && !msg.is_deleted && (
                     <span className="text-[10px] text-surface-500 italic">
@@ -211,8 +222,21 @@ export function MessageArea({
                     <button
                       onClick={() => startReply(msg)}
                       className="p-1 text-surface-400 hover:text-surface-100 rounded"
+                      title={t("chat.reply")}
                     >
                       <Reply className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => onPinMessage(msg.id)}
+                      className={cn(
+                        "p-1 rounded",
+                        msg.is_pinned
+                          ? "text-brand-400 hover:text-brand-300"
+                          : "text-surface-400 hover:text-surface-100"
+                      )}
+                      title={msg.is_pinned ? t("chat.unpinMessage") : t("chat.pinMessage")}
+                    >
+                      <Pin className="h-3.5 w-3.5" />
                     </button>
                     {isOwn && (
                       <>

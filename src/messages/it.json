@@ -120,7 +120,13 @@
     "kickMember": "Rimuovi membro",
     "inviteLink": "Link invito",
     "copied": "Copiato!",
-    "private": "Privato"
+    "private": "Privato",
+    "selectGroup": "Seleziona una chat per iniziare",
+    "unknownUser": "Utente sconosciuto",
+    "edited": "modificato",
+    "editing": "Modifica messaggio...",
+    "replyingTo": "In risposta a",
+    "messagePlaceholder": "Scrivi un messaggio..."
   },
   "calls": {
     "title": "Stanze Chiamata",

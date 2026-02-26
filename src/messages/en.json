@@ -120,7 +120,13 @@
     "kickMember": "Remove member",
     "inviteLink": "Invite link",
     "copied": "Copied!",
-    "private": "Private"
+    "private": "Private",
+    "selectGroup": "Select a chat to start messaging",
+    "unknownUser": "Unknown user",
+    "edited": "edited",
+    "editing": "Editing message...",
+    "replyingTo": "Replying to",
+    "messagePlaceholder": "Type a message..."
   },
   "calls": {
     "title": "Call Rooms",

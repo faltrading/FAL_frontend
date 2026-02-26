@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Send, Pencil, Trash2, Reply, X, MessageSquare } from "lucide-react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { Send, Pencil, Trash2, Reply, X, MessageSquare, CornerDownRight } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { cn, formatTime } from "@/lib/utils";
@@ -36,6 +36,12 @@ export function MessageArea({
   }, [messages]);
 
   const replyToMessage = messages.find((m) => m.id === replyToId);
+
+  const messagesById = useMemo(() => {
+    const map = new Map<string, ChatMessage>();
+    for (const m of messages) map.set(m.id, m);
+    return map;
+  }, [messages]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,18 +132,34 @@ export function MessageArea({
             >
               <div
                 className={cn(
-                  "max-w-[75%] rounded-lg px-3 py-2 relative group",
+                  "max-w-[85%] sm:max-w-[75%] rounded-lg px-3 py-2 relative group",
                   isOwn ? "bg-brand-500/20" : "bg-surface-700"
                 )}
               >
-                {msg.reply_to_content && (
-                  <div className="bg-surface-800 border-l-2 border-surface-500 rounded px-2 py-1 text-xs mb-1">
-                    <span className="text-surface-400 font-medium">
-                      {msg.reply_to_username}
-                    </span>
-                    <p className="text-surface-500 truncate">{msg.reply_to_content}</p>
-                  </div>
-                )}
+                {(() => {
+                  const replyContent = msg.reply_to_content ?? messagesById.get(msg.reply_to_id ?? "")?.content ?? null;
+                  const replyUsername = msg.reply_to_username ?? messagesById.get(msg.reply_to_id ?? "")?.sender_username ?? null;
+                  const replyDeleted = msg.reply_to_id ? messagesById.get(msg.reply_to_id)?.is_deleted : false;
+
+                  if (!msg.reply_to_id) return null;
+
+                  return (
+                    <div className="flex items-start gap-1.5 bg-surface-800/80 border-l-2 border-brand-400/60 rounded px-2 py-1.5 text-xs mb-1.5 cursor-pointer hover:bg-surface-800 transition-colors">
+                      <CornerDownRight className="h-3 w-3 text-brand-400/60 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <span className="text-brand-400 font-medium text-[11px]">
+                          {replyUsername || t("chat.unknownUser")}
+                        </span>
+                        <p className={cn(
+                          "truncate mt-0.5 leading-tight",
+                          replyDeleted ? "text-surface-500 italic" : "text-surface-400"
+                        )}>
+                          {replyDeleted ? t("chat.messageDeleted") : replyContent || "..."}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {!isOwn && (
                   <p className="text-xs font-medium text-brand-400 mb-0.5">
@@ -203,15 +225,21 @@ export function MessageArea({
       </div>
 
       {(replyToId || editingId) && (
-        <div className="px-4 py-2 bg-surface-800 border-t border-surface-700 flex items-center gap-2">
-          <div className="flex-1 text-xs text-surface-400 truncate">
+        <div className="px-3 sm:px-4 py-2 bg-surface-800 border-t border-surface-700 flex items-center gap-2">
+          <div className="flex-1 min-w-0 text-xs text-surface-400">
             {editingId ? (
               <span>{t("chat.editing")}</span>
             ) : (
-              <span>
-                {t("chat.replyingTo")}{" "}
-                <span className="text-brand-400">{replyToMessage?.sender_username}</span>
-              </span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Reply className="h-3.5 w-3.5 shrink-0 text-brand-400" />
+                <div className="min-w-0 truncate">
+                  <span>{t("chat.replyingTo")}{" "}</span>
+                  <span className="text-brand-400 font-medium">{replyToMessage?.sender_username}</span>
+                  {replyToMessage && (
+                    <span className="text-surface-500 ml-1.5 hidden sm:inline">— {replyToMessage.content}</span>
+                  )}
+                </div>
+              </div>
             )}
           </div>
           <button
@@ -219,7 +247,7 @@ export function MessageArea({
               if (editingId) cancelEdit();
               else setReplyToId(null);
             }}
-            className="text-surface-400 hover:text-surface-100"
+            className="text-surface-400 hover:text-surface-100 shrink-0"
           >
             <X className="h-4 w-4" />
           </button>

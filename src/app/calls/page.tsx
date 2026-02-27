@@ -22,6 +22,7 @@ import {
   PanelRightClose,
   AlertCircle,
   ExternalLink,
+  Trash2,
 } from "lucide-react";
 
 // Dynamically import JitsiMeet (no SSR - it needs window/document)
@@ -197,6 +198,24 @@ export default function CallsPage() {
       setParticipants([]);
       setInCallMessages([]);
       fetchCalls();
+    }
+  };
+
+  const handleDeleteCall = async (callId: string) => {
+    if (!confirm(t("calls.confirmDelete"))) return;
+    try {
+      await api.delete(`/api/v1/calls/rooms/${callId}`);
+      // If we were in this call, exit the call view
+      if (activeCall && activeCall.call.id === callId) {
+        setActiveCall(null);
+        setParticipants([]);
+        setInCallMessages([]);
+      }
+      fetchCalls();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to delete call";
+      setError(msg);
+      console.error("[Calls] Delete call failed:", err);
     }
   };
 
@@ -458,20 +477,31 @@ export default function CallsPage() {
                 )}
                 <div>{formatDateTime(call.started_at, locale)}</div>
               </div>
-              {call.status === "active" && (
-                <button
-                  onClick={() => handleJoinCall(call.id)}
-                  disabled={joining === call.id}
-                  className="btn-primary w-full"
-                >
-                  {joining === call.id ? (
-                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <Phone className="h-4 w-4" />
-                  )}
-                  {t("calls.join")}
-                </button>
-              )}
+              <div className="flex gap-2">
+                {call.status === "active" && (
+                  <button
+                    onClick={() => handleJoinCall(call.id)}
+                    disabled={joining === call.id}
+                    className="btn-primary flex-1"
+                  >
+                    {joining === call.id ? (
+                      <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Phone className="h-4 w-4" />
+                    )}
+                    {t("calls.join")}
+                  </button>
+                )}
+                {(isAdmin || call.created_by === user?.id) && (
+                  <button
+                    onClick={() => handleDeleteCall(call.id)}
+                    className="btn-danger flex-shrink-0"
+                    title={t("calls.deleteCall")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>

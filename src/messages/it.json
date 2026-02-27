@@ -155,11 +155,16 @@
   },
   "calls": {
     "title": "Stanze Chiamata",
+    "subtitle": "Crea o unisciti a stanze di chiamata audio/video",
     "createRoom": "Crea stanza",
     "roomName": "Nome stanza",
+    "roomNamePlaceholder": "Inserisci il nome della stanza...",
+    "join": "Entra",
     "joinCall": "Entra",
+    "leave": "Esci",
     "leaveCall": "Esci",
     "endCall": "Termina chiamata",
+    "create": "Crea",
     "kick": "Espelli",
     "moderator": "Moderatore",
     "participant": "Partecipante",
@@ -167,9 +172,15 @@
     "activeCall": "Attiva",
     "endedCall": "Terminata",
     "noActiveCalls": "Nessuna stanza attiva",
+    "noRooms": "Nessuna stanza attiva",
     "callEnded": "Questa chiamata e' terminata",
+    "chat": "Chat",
+    "chatPlaceholder": "Scrivi un messaggio...",
     "inCallChat": "Chat in chiamata",
-    "createdBy": "Creata da"
+    "createdBy": "Creata da",
+    "maxParticipants": "Partecipanti massimi",
+    "deleteCall": "Elimina chiamata",
+    "confirmDelete": "Sei sicuro di voler eliminare permanentemente questa chiamata? Questa azione non puo' essere annullata."
   },
   "profile": {
     "title": "Profilo",

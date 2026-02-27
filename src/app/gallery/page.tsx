@@ -24,12 +24,6 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function getFileCategory(fileType: string): string {
-  if (fileType.startsWith("image/")) return "images";
-  if (fileType.startsWith("video/")) return "videos";
-  return "documents";
-}
-
 function FileCard({
   file,
   isAdmin,
@@ -113,21 +107,27 @@ export default function GalleryPage() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const getToken = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("fal_token");
+  }, []);
+
   const fetchFiles = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("gallery_files")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (!error && data) {
+      const token = getToken();
+      const res = await fetch("/api/gallery", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
         setFiles(data as GalleryFile[]);
       }
     } catch {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getToken]);
 
   useEffect(() => {
     fetchFiles();
@@ -148,9 +148,14 @@ export default function GalleryPage() {
 
   const handleDelete = async (file: GalleryFile) => {
     try {
-      await supabase.storage.from("gallery").remove([file.file_path]);
-      await supabase.from("gallery_files").delete().eq("id", file.id);
-      setFiles((prev) => prev.filter((f) => f.id !== file.id));
+      const token = getToken();
+      const res = await fetch(`/api/gallery/${file.id}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok || res.status === 204) {
+        setFiles((prev) => prev.filter((f) => f.id !== file.id));
+      }
     } catch {
     }
   };
@@ -161,25 +166,16 @@ export default function GalleryPage() {
 
     setUploading(true);
     try {
+      const token = getToken();
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i];
-        const filePath = `uploads/${Date.now()}_${file.name}`;
+        const formData = new FormData();
+        formData.append("file", file);
 
-        const { error: uploadError } = await supabase.storage
-          .from("gallery")
-          .upload(filePath, file);
-
-        if (uploadError) continue;
-
-        const category = getFileCategory(file.type);
-
-        await supabase.from("gallery_files").insert({
-          file_name: file.name,
-          file_path: filePath,
-          file_type: file.type,
-          file_size: file.size,
-          category,
-          uploaded_by: user.id,
+        await fetch("/api/gallery", {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
         });
       }
       await fetchFiles();

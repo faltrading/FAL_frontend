@@ -180,7 +180,8 @@
     "createdBy": "Creata da",
     "maxParticipants": "Partecipanti massimi",
     "deleteCall": "Elimina chiamata",
-    "confirmDelete": "Sei sicuro di voler eliminare permanentemente questa chiamata? Questa azione non puo' essere annullata."
+    "confirmDelete": "Sei sicuro di voler eliminare permanentemente questa chiamata? Questa azione non puo' essere annullata.",
+    "searchPlaceholder": "Cerca stanze per nome o creatore..."
   },
   "profile": {
     "title": "Profilo",

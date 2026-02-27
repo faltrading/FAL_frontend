@@ -23,6 +23,7 @@ import {
   AlertCircle,
   ExternalLink,
   Trash2,
+  Search,
 } from "lucide-react";
 
 // Dynamically import JitsiMeet (no SSR - it needs window/document)
@@ -59,6 +60,7 @@ export default function CallsPage() {
   const [joining, setJoining] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const fetchCalls = useCallback(() => {
@@ -434,6 +436,27 @@ export default function CallsPage() {
         </div>
       )}
 
+      {!loading && calls.length > 0 && (
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-surface-500" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t("calls.searchPlaceholder")}
+            className="input-field w-full pl-10"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-500 hover:text-surface-300"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="h-8 w-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
@@ -445,7 +468,16 @@ export default function CallsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {calls.map((call) => (
+          {calls
+          .filter((call) => {
+            if (!searchQuery.trim()) return true;
+            const q = searchQuery.toLowerCase();
+            return (
+              call.room_name.toLowerCase().includes(q) ||
+              call.creator_username.toLowerCase().includes(q)
+            );
+          })
+          .map((call) => (
             <div
               key={call.id}
               className="card animate-fade-in hover:border-surface-600 transition-colors"

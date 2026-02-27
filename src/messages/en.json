@@ -180,7 +180,8 @@
     "createdBy": "Created by",
     "maxParticipants": "Max participants",
     "deleteCall": "Delete call",
-    "confirmDelete": "Are you sure you want to permanently delete this call? This action cannot be undone."
+    "confirmDelete": "Are you sure you want to permanently delete this call? This action cannot be undone.",
+    "searchPlaceholder": "Search rooms by name or creator..."
   },
   "profile": {
     "title": "Profile",

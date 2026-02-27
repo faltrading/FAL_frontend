@@ -733,9 +733,16 @@ function ConnectTab({
   const downloadEa = async (conn: BrokerConnection, version: "mq4" | "mq5") => {
     const token = conn.metadata?.ea_token as string | undefined;
     if (!token) return;
-    const gatewayUrl = window.location.hostname === "localhost"
-      ? "https://YOUR-GATEWAY-URL"
-      : window.location.origin;
+    // Use the API gateway URL — the EA calls /api/v1/broker/ea/push directly on the gateway,
+    // NOT the frontend URL (window.location.origin would be wrong here).
+    const gatewayUrl = (
+      process.env.NEXT_PUBLIC_API_GATEWAY_URL ||
+      (window.location.hostname === "localhost" ? "http://localhost:8000" : "")
+    ).replace(/\/+$/, "");
+    if (!gatewayUrl) {
+      alert("NEXT_PUBLIC_API_GATEWAY_URL non configurato. Contatta l'amministratore.");
+      return;
+    }
     const res = await fetch(`/ea/FAL_Journal.${version}`);
     let content = await res.text();
     content = content.replace("%%GATEWAY_URL%%", gatewayUrl);
@@ -941,7 +948,9 @@ function ConnectTab({
                         <HelpCircle className="h-3.5 w-3.5" />
                       </button>
                     </div>
+                    {/* EA Token row */}
                     <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-surface-500 w-16 shrink-0">Token:</span>
                       <code className="text-xs font-mono text-brand-300 bg-surface-800 px-2 py-1 rounded select-all">
                         {eaToken.slice(0, 20)}…
                       </code>
@@ -956,6 +965,17 @@ function ConnectTab({
                         )}
                         {copiedId === conn.id ? "Copiato!" : "Copia"}
                       </button>
+                    </div>
+                    {/* EA Server URL row — so user can verify it's correct */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-surface-500 w-16 shrink-0">URL EA:</span>
+                      <code className="text-xs font-mono text-surface-400 bg-surface-800 px-2 py-1 rounded break-all">
+                        {(process.env.NEXT_PUBLIC_API_GATEWAY_URL || "⚠ URL non configurato").replace(/\/+$/, "")}
+                        /api/v1/broker/ea/push
+                      </code>
+                    </div>
+                    {/* Download buttons */}
+                    <div className="flex items-center gap-2 flex-wrap">
                       <button
                         onClick={() => downloadEa(conn, "mq4")}
                         className="btn-secondary text-xs py-1"

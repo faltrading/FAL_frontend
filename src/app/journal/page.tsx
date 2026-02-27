@@ -48,7 +48,7 @@ const PROVIDERS = [
 
 function getCredentialFields(
   provider: string
-): { key: string; label: string; type: string }[] {
+): { key: string; label: string; type: string; options?: string[] }[] {
   if (provider === "ftmo" || provider === "fintokei") {
     return [
       { key: "platform", label: "Platform", type: "text" },

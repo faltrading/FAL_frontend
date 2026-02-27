@@ -38,8 +38,8 @@ let _bucketReady = false;
 
 const GALLERY_BUCKET_OPTIONS = {
   public: true,
-  fileSizeLimit: 0,          // no limit
-  allowedMimeTypes: null,    // accept any file type
+  fileSizeLimit: 5368709120,   // 5 GB — effectively unlimited
+  allowedMimeTypes: undefined, // accept any file type
 };
 
 export async function ensureGalleryBucket(): Promise<void> {

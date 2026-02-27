@@ -4,13 +4,12 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { api } from "@/lib/api";
-import { cn, formatDate, formatTime } from "@/lib/utils";
-import type { User, CalendarSettings, Booking, PaymentPlan, Call, JoinCallResponse } from "@/lib/types";
+import { cn, formatDate } from "@/lib/utils";
+import type { User, CalendarSettings, Booking, PaymentPlan, Call, JoinCallResponse, AvailabilityDay, PublicDayAvailability } from "@/lib/types";
 import {
   LessonCalendar,
-  type CalendarEvent,
-  type WeekSchedule,
-  DEFAULT_SCHEDULE,
+  type BookingEvent,
+  type CallEvent,
 } from "@/components/calendar/LessonCalendar";
 import {
   Users,
@@ -107,116 +106,137 @@ function UsersTab() {
   );
 }
 
-interface AdminSlot {
-  id: string;
-  date: string;
-  start_time: string;
-  end_time: string;
-  is_available: boolean;
-  created_by?: string;
-}
-
 function CalendarTab() {
   const { t } = useI18n();
-  const [adminSlots, setAdminSlots] = useState<AdminSlot[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [calls, setCalls] = useState<Call[]>([]);
+  const [generalAvailability, setGeneralAvailability] = useState<AvailabilityDay[]>([]);
+  const [availabilityDays, setAvailabilityDays] = useState<PublicDayAvailability[]>([]);
   const [settings, setSettings] = useState<CalendarSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  const fetchAll = useCallback(() => {
+  // Compute date range for current view
+  const dateRange = useMemo(() => {
+    const from = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    from.setDate(from.getDate() - 7);
+    const to = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    to.setDate(to.getDate() + 14);
+    const fmt = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return { from: fmt(from), to: fmt(to) };
+  }, [currentMonth]);
+
+  const fetchAll = useCallback(async () => {
     setLoading(true);
-    Promise.all([
-      api.get<AdminSlot[]>("/api/v1/calendar/slots").catch(() => [] as AdminSlot[]),
-      api.get<Booking[]>("/api/v1/calendar/bookings").catch(() => [] as Booking[]),
-      api.get<{ calls: Call[] }>("/api/v1/calls/rooms").then(
-        (r) => (Array.isArray(r) ? r : r.calls ?? []) as Call[],
-      ).catch(() => [] as Call[]),
-      api.get<CalendarSettings>("/api/v1/calendar/settings").catch(() => null),
-    ]).then(([slotsData, bookingsData, callsData, settingsData]) => {
-      setAdminSlots(slotsData);
+    try {
+      const [bookingsData, callsData, generalData, availData, settingsData] = await Promise.all([
+        api.get<Booking[]>("/api/v1/calendar/bookings").catch(() => [] as Booking[]),
+        api
+          .get<{ calls: Call[] }>("/api/v1/calls/rooms")
+          .then((r) => (Array.isArray(r) ? r : r.calls ?? []) as Call[])
+          .catch(() => [] as Call[]),
+        api.get<AvailabilityDay[]>("/api/v1/calendar/availability").catch(() => [] as AvailabilityDay[]),
+        api
+          .get<{ days: PublicDayAvailability[] }>(
+            `/api/v1/calendar/availability/public?date_from=${dateRange.from}&date_to=${dateRange.to}`,
+          )
+          .then((r) => r.days ?? [])
+          .catch(() => [] as PublicDayAvailability[]),
+        api.get<CalendarSettings>("/api/v1/calendar/settings").catch(() => null),
+      ]);
       setBookings(bookingsData);
       setCalls(callsData);
+      setGeneralAvailability(generalData);
+      setAvailabilityDays(availData);
       if (settingsData) setSettings(settingsData);
-    }).finally(() => setLoading(false));
-  }, []);
+    } finally {
+      setLoading(false);
+    }
+  }, [dateRange]);
 
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
 
-  /* Build events for admin view */
-  const calendarEvents: CalendarEvent[] = useMemo(() => {
-    const events: CalendarEvent[] = [];
-    const bookedSlotIds = new Set(
-      bookings.filter((b) => b.status === "confirmed").map((b) => b.slot_id),
-    );
-
-    for (const s of adminSlots) {
-      if (bookedSlotIds.has(s.id)) continue;
-      events.push({
-        id: `slot-${s.id}`,
-        start: s.start_time,
-        end: s.end_time,
-        type: s.is_available ? "available" : "cancelled",
-        slotId: s.id,
-      });
-    }
-
-    for (const b of bookings) {
-      events.push({
-        id: `booking-${b.id}`,
-        start: b.start_time,
-        end: b.end_time,
-        type: b.status === "confirmed" ? "booked" : "cancelled",
-        bookingId: b.id,
-        slotId: b.slot_id,
+  /* Map backend bookings → BookingEvent */
+  const bookingEvents: BookingEvent[] = useMemo(
+    () =>
+      bookings.map((b) => ({
+        id: b.id,
+        bookingDate: b.booking_date ?? "",
+        startTime: b.start_time ?? "",
+        endTime: b.end_time ?? "",
+        status: b.status as "confirmed" | "cancelled",
         username: b.username,
         notes: b.notes,
-      });
-    }
+      })),
+    [bookings],
+  );
 
-    for (const c of calls) {
-      const startDate = c.started_at || c.created_at || new Date().toISOString();
-      const endDate = c.ended_at || new Date(new Date(startDate).getTime() + 3600000).toISOString();
-      events.push({
-        id: `call-${c.id}`,
+  /* Map calls → CallEvent */
+  const callEvents: CallEvent[] = useMemo(
+    () =>
+      calls.map((c) => ({
+        id: c.id,
         title: c.room_name,
-        start: startDate,
-        end: endDate,
-        type: "call",
-        callId: c.id,
+        start: c.started_at || c.created_at || new Date().toISOString(),
+        end:
+          c.ended_at ||
+          new Date(
+            new Date(c.started_at || c.created_at || Date.now()).getTime() + 3600000,
+          ).toISOString(),
         username: c.creator_username,
         participantCount: c.participant_count ?? 0,
         isActive: c.status === "active",
-      });
-    }
-
-    return events;
-  }, [adminSlots, bookings, calls]);
+      })),
+    [calls],
+  );
 
   /* Handlers */
-  const handleDeleteSlot = async (ev: CalendarEvent) => {
-    if (!ev.slotId) return;
+  const handleSaveGeneralAvailability = async (days: AvailabilityDay[]) => {
     try {
-      await api.delete(`/api/v1/calendar/slots/${ev.slotId}`);
+      await api.put("/api/v1/calendar/availability", { days });
+      setMessage(t("lessonCalendar.availabilitySaved"));
       fetchAll();
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
   };
 
-  const handleCreateSlot = async (date: string, startTime: string, endTime: string) => {
+  const handleSaveOverride = async (ovr: {
+    override_date: string;
+    is_closed: boolean;
+    start_time: string | null;
+    end_time: string | null;
+    notes: string | null;
+  }) => {
     try {
-      await api.post("/api/v1/calendar/slots/batch", {
-        start_date: date,
-        end_date: date,
-        start_time: startTime,
-        end_time: endTime,
-        exclude_weekends: false,
-      });
-      setMessage(t("lessonCalendar.slotCreated"));
+      await api.post("/api/v1/calendar/availability/overrides", ovr);
+      setMessage(t("lessonCalendar.overrideSaved"));
       fetchAll();
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
+  };
+
+  const handleDeleteOverride = async (dateStr: string) => {
+    try {
+      await api.delete(`/api/v1/calendar/availability/overrides/${dateStr}`);
+      fetchAll();
+    } catch {
+      /* */
+    }
+  };
+
+  const handleCancelAnyBooking = async (bookingId: string) => {
+    try {
+      await api.delete(`/api/v1/calendar/bookings/${bookingId}`);
+      fetchAll();
+    } catch {
+      /* */
+    }
   };
 
   const handleScheduleCall = async (roomName: string) => {
@@ -226,70 +246,19 @@ function CalendarTab() {
       });
       setMessage(t("lessonCalendar.callStarted"));
       fetchAll();
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
   };
 
-  const handleJoinCall = async (ev: CalendarEvent) => {
-    if (!ev.callId) return;
+  const handleJoinCall = async (callId: string) => {
     try {
-      const data = await api.post<JoinCallResponse>(`/api/v1/calls/rooms/${ev.callId}/join`);
+      const data = await api.post<JoinCallResponse>(`/api/v1/calls/rooms/${callId}/join`);
       const url = data.jitsi_room_url || `https://${data.jitsi_domain}/${data.jitsi_room}`;
       window.open(url, "_blank");
-    } catch { /* */ }
-  };
-
-  const handleSaveAvailability = async (
-    schedule: WeekSchedule,
-    weeks: number,
-    slotDuration: number,
-  ) => {
-    // 1) Save settings
-    try {
-      await api.put("/api/v1/calendar/settings", {
-        slot_duration_minutes: slotDuration,
-        min_booking_notice_minutes: settings?.min_notice_minutes ?? 60,
-        timezone: "UTC",
-      });
     } catch {
-      // settings endpoint might not exist yet, continue anyway
+      /* */
     }
-
-    // 2) Generate slots for each enabled day in the next N weeks
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const batchCalls: Promise<unknown>[] = [];
-
-    for (let w = 0; w < weeks; w++) {
-      for (let d = 0; d < 7; d++) {
-        const dayConfig = schedule[d];
-        if (!dayConfig.enabled) continue;
-
-        // d: 0=Mon..6=Sun → JS getDay(): 0=Sun..6=Sat
-        // target JS day: (d + 1) % 7
-        const targetJsDay = (d + 1) % 7;
-        const diff = ((targetJsDay - today.getDay()) + 7) % 7;
-        const date = new Date(today);
-        date.setDate(today.getDate() + diff + w * 7);
-
-        // Only future dates
-        if (date < today) continue;
-
-        const dateStr = date.toISOString().split("T")[0];
-        batchCalls.push(
-          api.post("/api/v1/calendar/slots/batch", {
-            start_date: dateStr,
-            end_date: dateStr,
-            start_time: dayConfig.startTime,
-            end_time: dayConfig.endTime,
-            exclude_weekends: false,
-          }).catch(() => null),
-        );
-      }
-    }
-
-    await Promise.all(batchCalls);
-    setMessage(t("lessonCalendar.availabilitySaved"));
-    fetchAll();
   };
 
   return (
@@ -305,16 +274,21 @@ function CalendarTab() {
       )}
 
       <LessonCalendar
-        events={calendarEvents}
+        bookings={bookingEvents}
+        calls={callEvents}
+        availabilityDays={availabilityDays}
+        generalAvailability={generalAvailability}
         loading={loading}
         isAdmin
-        initialSlotDuration={settings?.slot_duration_minutes ?? 30}
-        initialSchedule={[...DEFAULT_SCHEDULE] as WeekSchedule}
-        onDeleteSlot={handleDeleteSlot}
-        onCreateSlot={handleCreateSlot}
+        currentMonth={currentMonth}
+        onMonthChange={setCurrentMonth}
+        allowBookingOutsideAvailability={settings?.allow_booking_outside_availability ?? false}
+        onSaveGeneralAvailability={handleSaveGeneralAvailability}
+        onSaveOverride={handleSaveOverride}
+        onDeleteOverride={handleDeleteOverride}
+        onCancelAnyBooking={handleCancelAnyBooking}
         onScheduleCall={handleScheduleCall}
         onJoinCall={handleJoinCall}
-        onSaveAvailability={handleSaveAvailability}
       />
     </div>
   );
@@ -381,9 +355,9 @@ function BookingsTab() {
             {filtered.map((b) => (
               <tr key={b.id} className="border-b border-surface-700/50 hover:bg-surface-700/30">
                 <td className="py-3 px-3 text-surface-100">{b.username}</td>
-                <td className="py-3 px-3 text-surface-300">{formatDate(b.start_time, locale)}</td>
+                <td className="py-3 px-3 text-surface-300">{b.booking_date ?? formatDate(b.created_at, locale)}</td>
                 <td className="py-3 px-3 text-surface-300">
-                  {formatTime(b.start_time, locale)} - {formatTime(b.end_time, locale)}
+                  {b.start_time} – {b.end_time}
                 </td>
                 <td className="py-3 px-3">
                   <span className={b.status === "confirmed" ? "badge-success" : "badge-error"}>

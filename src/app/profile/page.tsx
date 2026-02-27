@@ -5,8 +5,8 @@ import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { api } from "@/lib/api";
 import { formatDate, getInitials } from "@/lib/utils";
-import type { CalendarSlot, Booking, Call, JoinCallResponse } from "@/lib/types";
-import { LessonCalendar, type CalendarEvent } from "@/components/calendar/LessonCalendar";
+import type { Booking, Call, JoinCallResponse, PublicDayAvailability, AvailabilityDay } from "@/lib/types";
+import { LessonCalendar, type BookingEvent, type CallEvent } from "@/components/calendar/LessonCalendar";
 import {
   User,
   CalendarDays,
@@ -326,92 +326,92 @@ function ProfileTab() {
 
 function CalendarTab() {
   const { t } = useI18n();
-  const [slots, setSlots] = useState<CalendarSlot[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [calls, setCalls] = useState<Call[]>([]);
+  const [availabilityDays, setAvailabilityDays] = useState<PublicDayAvailability[]>([]);
+  const [generalAvailability, setGeneralAvailability] = useState<AvailabilityDay[]>([]);
+  const [allowOutside, setAllowOutside] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  const fetchData = useCallback(() => {
+  // Compute date range for current view (month ± buffer)
+  const dateRange = useMemo(() => {
+    const from = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    from.setDate(from.getDate() - 7);
+    const to = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    to.setDate(to.getDate() + 14);
+    const fmt = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return { from: fmt(from), to: fmt(to) };
+  }, [currentMonth]);
+
+  const fetchData = useCallback(async () => {
     setLoading(true);
-    Promise.all([
-      api.get<CalendarSlot[]>("/api/v1/calendar/slots").catch(() => [] as CalendarSlot[]),
-      api.get<Booking[]>("/api/v1/calendar/bookings/mine").catch(() => [] as Booking[]),
-      api.get<{ calls: Call[] }>("/api/v1/calls/rooms").then(
-        (r) => (Array.isArray(r) ? r : r.calls ?? []) as Call[],
-      ).catch(() => [] as Call[]),
-    ])
-      .then(([slotsData, bookingsData, callsData]) => {
-        setSlots(slotsData);
-        setBookings(bookingsData);
-        setCalls(callsData);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    try {
+      const [bookingsData, callsData, availData] = await Promise.all([
+        api.get<Booking[]>("/api/v1/calendar/bookings/mine").catch(() => [] as Booking[]),
+        api
+          .get<{ calls: Call[] }>("/api/v1/calls/rooms")
+          .then((r) => (Array.isArray(r) ? r : r.calls ?? []) as Call[])
+          .catch(() => [] as Call[]),
+        api
+          .get<{ general: AvailabilityDay[]; days: PublicDayAvailability[]; allow_booking_outside_availability: boolean }>(
+            `/api/v1/calendar/availability/public?date_from=${dateRange.from}&date_to=${dateRange.to}`,
+          )
+          .catch(() => ({ general: [], days: [], allow_booking_outside_availability: false })),
+      ]);
+      setBookings(bookingsData);
+      setCalls(callsData);
+      setAvailabilityDays(availData.days ?? []);
+      setGeneralAvailability(availData.general ?? []);
+      setAllowOutside(availData.allow_booking_outside_availability ?? false);
+    } finally {
+      setLoading(false);
+    }
+  }, [dateRange]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Build calendar events from slots + bookings + calls
-  const calendarEvents: CalendarEvent[] = useMemo(() => {
-    const events: CalendarEvent[] = [];
-
-    // User's bookings
-    const bookedSlotIds = new Set(
-      bookings.filter((b) => b.status === "confirmed").map((b) => b.slot_id)
-    );
-
-    for (const b of bookings) {
-      events.push({
-        id: `booking-${b.id}`,
-        start: b.start_time,
-        end: b.end_time,
-        type: b.status === "confirmed" ? "my-booking" : "cancelled",
-        bookingId: b.id,
-        slotId: b.slot_id,
+  // Map backend bookings → BookingEvent
+  const bookingEvents: BookingEvent[] = useMemo(
+    () =>
+      bookings.map((b) => ({
+        id: b.id,
+        bookingDate: b.booking_date ?? "",
+        startTime: b.start_time ?? "",
+        endTime: b.end_time ?? "",
+        status: b.status as "confirmed" | "cancelled",
+        username: b.username,
         notes: b.notes,
-      });
-    }
+      })),
+    [bookings],
+  );
 
-    // Available slots (not booked by this user)
-    for (const s of slots) {
-      if (!s.is_booked && !bookedSlotIds.has(s.id)) {
-        events.push({
-          id: `slot-${s.id}`,
-          start: s.start_time,
-          end: s.end_time,
-          type: "available",
-          slotId: s.id,
-        });
-      }
-    }
-
-    // Active calls
-    for (const c of calls) {
-      const startDate = c.started_at || c.created_at || new Date().toISOString();
-      const endDate = c.ended_at || new Date(new Date(startDate).getTime() + 3600000).toISOString();
-      events.push({
-        id: `call-${c.id}`,
+  // Map calls → CallEvent
+  const callEvents: CallEvent[] = useMemo(
+    () =>
+      calls.map((c) => ({
+        id: c.id,
         title: c.room_name,
-        start: startDate,
-        end: endDate,
-        type: "call",
-        callId: c.id,
+        start: c.started_at || c.created_at || new Date().toISOString(),
+        end: c.ended_at || new Date(new Date(c.started_at || c.created_at || Date.now()).getTime() + 3600000).toISOString(),
         username: c.creator_username,
         participantCount: c.participant_count ?? 0,
         isActive: c.status === "active",
-      });
-    }
+      })),
+    [calls],
+  );
 
-    return events;
-  }, [slots, bookings, calls]);
-
-  const handleBookSlot = async (ev: CalendarEvent, notes: string) => {
+  const handleCreateBooking = async (dateStr: string, startTime: string, endTime: string, notes: string) => {
     setMessage("");
     try {
       await api.post("/api/v1/calendar/bookings", {
-        slot_id: ev.slotId,
+        booking_date: dateStr,
+        start_time: startTime,
+        end_time: endTime,
         notes: notes || "",
       });
       setMessage(t("profile.bookingConfirmed"));
@@ -421,10 +421,10 @@ function CalendarTab() {
     }
   };
 
-  const handleCancelBooking = async (ev: CalendarEvent) => {
+  const handleCancelBooking = async (bookingId: string) => {
     setMessage("");
     try {
-      await api.delete(`/api/v1/calendar/bookings/${ev.bookingId}`);
+      await api.delete(`/api/v1/calendar/bookings/${bookingId}`);
       setMessage(t("profile.bookingCancelled"));
       fetchData();
     } catch {
@@ -432,10 +432,9 @@ function CalendarTab() {
     }
   };
 
-  const handleJoinCall = async (ev: CalendarEvent) => {
-    if (!ev.callId) return;
+  const handleJoinCall = async (callId: string) => {
     try {
-      const data = await api.post<JoinCallResponse>(`/api/v1/calls/rooms/${ev.callId}/join`);
+      const data = await api.post<JoinCallResponse>(`/api/v1/calls/rooms/${callId}/join`);
       const url = data.jitsi_room_url || `https://${data.jitsi_domain}/${data.jitsi_room}`;
       window.open(url, "_blank");
     } catch {
@@ -453,11 +452,17 @@ function CalendarTab() {
       )}
 
       <LessonCalendar
-        events={calendarEvents}
+        bookings={bookingEvents}
+        calls={callEvents}
+        availabilityDays={availabilityDays}
+        generalAvailability={generalAvailability}
         loading={loading}
-        onBookSlot={handleBookSlot}
+        currentMonth={currentMonth}
+        onMonthChange={setCurrentMonth}
+        onCreateBooking={handleCreateBooking}
         onCancelBooking={handleCancelBooking}
         onJoinCall={handleJoinCall}
+        allowBookingOutsideAvailability={allowOutside}
       />
     </div>
   );

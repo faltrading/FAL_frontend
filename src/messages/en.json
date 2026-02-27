@@ -393,7 +393,8 @@
     "features": "Features",
     "featuresPlaceholder": "Comma-separated features",
     "activate": "Activate",
-    "deactivate": "Deactivate"
+    "deactivate": "Deactivate",
+    "calendar": "Calendar"
   },
   "lessonCalendar": {
     "today": "Today",
@@ -407,7 +408,29 @@
     "status_available": "Available",
     "status_booked": "Booked",
     "status_my-booking": "My booking",
-    "status_cancelled": "Cancelled"
+    "status_cancelled": "Cancelled",
+    "status_call": "Call",
+    "configureAvailability": "Configure Availability",
+    "availability": "Availability",
+    "slotDuration": "Slot duration (min)",
+    "generateWeeks": "Generate for next",
+    "weeks": "weeks",
+    "dayOff": "Day off",
+    "generateSlots": "Generate Slots",
+    "call": "Call",
+    "participants": "participants",
+    "callEnded": "ended",
+    "joinCall": "Join Call",
+    "addSlot": "Add Slot",
+    "from": "From",
+    "to": "To",
+    "create": "Create",
+    "startCall": "Start Call",
+    "roomName": "Room name",
+    "roomNamePlaceholder": "e.g. Weekly lesson",
+    "slotCreated": "Slot created successfully",
+    "callStarted": "Call started — share with participants",
+    "availabilitySaved": "Availability generated successfully"
   },
   "legal": {
     "privacyTitle": "Privacy Policy",

@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { api } from "@/lib/api";
 import { formatDate, getInitials } from "@/lib/utils";
-import type { CalendarSlot, Booking } from "@/lib/types";
+import type { CalendarSlot, Booking, Call, JoinCallResponse } from "@/lib/types";
 import { LessonCalendar, type CalendarEvent } from "@/components/calendar/LessonCalendar";
 import {
   User,
@@ -328,6 +328,7 @@ function CalendarTab() {
   const { t } = useI18n();
   const [slots, setSlots] = useState<CalendarSlot[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [calls, setCalls] = useState<Call[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -336,10 +337,14 @@ function CalendarTab() {
     Promise.all([
       api.get<CalendarSlot[]>("/api/v1/calendar/slots").catch(() => [] as CalendarSlot[]),
       api.get<Booking[]>("/api/v1/calendar/bookings/mine").catch(() => [] as Booking[]),
+      api.get<{ calls: Call[] }>("/api/v1/calls/rooms").then(
+        (r) => (Array.isArray(r) ? r : r.calls ?? []) as Call[],
+      ).catch(() => [] as Call[]),
     ])
-      .then(([slotsData, bookingsData]) => {
+      .then(([slotsData, bookingsData, callsData]) => {
         setSlots(slotsData);
         setBookings(bookingsData);
+        setCalls(callsData);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -348,7 +353,7 @@ function CalendarTab() {
     fetchData();
   }, [fetchData]);
 
-  // Build calendar events from slots + bookings
+  // Build calendar events from slots + bookings + calls
   const calendarEvents: CalendarEvent[] = useMemo(() => {
     const events: CalendarEvent[] = [];
 
@@ -382,8 +387,25 @@ function CalendarTab() {
       }
     }
 
+    // Active calls
+    for (const c of calls) {
+      const startDate = c.started_at || c.created_at || new Date().toISOString();
+      const endDate = c.ended_at || new Date(new Date(startDate).getTime() + 3600000).toISOString();
+      events.push({
+        id: `call-${c.id}`,
+        title: c.room_name,
+        start: startDate,
+        end: endDate,
+        type: "call",
+        callId: c.id,
+        username: c.creator_username,
+        participantCount: c.participant_count ?? 0,
+        isActive: c.status === "active",
+      });
+    }
+
     return events;
-  }, [slots, bookings]);
+  }, [slots, bookings, calls]);
 
   const handleBookSlot = async (ev: CalendarEvent, notes: string) => {
     setMessage("");
@@ -410,6 +432,17 @@ function CalendarTab() {
     }
   };
 
+  const handleJoinCall = async (ev: CalendarEvent) => {
+    if (!ev.callId) return;
+    try {
+      const data = await api.post<JoinCallResponse>(`/api/v1/calls/rooms/${ev.callId}/join`);
+      const url = data.jitsi_room_url || `https://${data.jitsi_domain}/${data.jitsi_room}`;
+      window.open(url, "_blank");
+    } catch {
+      /* handled by api */
+    }
+  };
+
   return (
     <div className="space-y-4">
       {message && (
@@ -424,6 +457,7 @@ function CalendarTab() {
         loading={loading}
         onBookSlot={handleBookSlot}
         onCancelBooking={handleCancelBooking}
+        onJoinCall={handleJoinCall}
       />
     </div>
   );

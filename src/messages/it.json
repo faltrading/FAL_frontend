@@ -393,7 +393,8 @@
     "features": "Funzionalita'",
     "featuresPlaceholder": "Funzionalita' separate da virgola",
     "activate": "Attiva",
-    "deactivate": "Disattiva"
+    "deactivate": "Disattiva",
+    "calendar": "Calendario"
   },
   "lessonCalendar": {
     "today": "Oggi",
@@ -407,7 +408,29 @@
     "status_available": "Disponibile",
     "status_booked": "Prenotato",
     "status_my-booking": "Mia prenotazione",
-    "status_cancelled": "Annullato"
+    "status_cancelled": "Annullato",
+    "status_call": "Chiamata",
+    "configureAvailability": "Configura Disponibilità",
+    "availability": "Disponibilità",
+    "slotDuration": "Durata slot (min)",
+    "generateWeeks": "Genera per le prossime",
+    "weeks": "settimane",
+    "dayOff": "Giorno libero",
+    "generateSlots": "Genera Slot",
+    "call": "Chiamata",
+    "participants": "partecipanti",
+    "callEnded": "terminata",
+    "joinCall": "Partecipa",
+    "addSlot": "Aggiungi Slot",
+    "from": "Dalle",
+    "to": "Alle",
+    "create": "Crea",
+    "startCall": "Avvia Chiamata",
+    "roomName": "Nome stanza",
+    "roomNamePlaceholder": "es. Lezione settimanale",
+    "slotCreated": "Slot creato con successo",
+    "callStarted": "Chiamata avviata — condividi con i partecipanti",
+    "availabilitySaved": "Disponibilità generata con successo"
   },
   "legal": {
     "privacyTitle": "Informativa sulla Privacy",

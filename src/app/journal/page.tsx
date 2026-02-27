@@ -43,56 +43,8 @@ const PROVIDERS = [
   { id: "fintokei", label: "Fintokei" },
   { id: "topstep", label: "TopStep" },
   { id: "tradeify", label: "Tradeify" },
-  { id: "lucid", label: "Lucid Trading" },
+  { id: "lucidtrading", label: "Lucid Trading" },
 ];
-
-function getCredentialFields(
-  provider: string
-): { key: string; label: string; type: string; options?: string[] }[] {
-  if (provider === "ftmo" || provider === "fintokei") {
-    return [
-      { key: "platform", label: "Platform", type: "text" },
-      { key: "ctrader_client_id", label: "cTrader Client ID", type: "text" },
-      {
-        key: "ctrader_client_secret",
-        label: "cTrader Client Secret",
-        type: "password",
-      },
-      {
-        key: "ctrader_access_token",
-        label: "cTrader Access Token",
-        type: "password",
-      },
-    ];
-  }
-  if (provider === "topstep") {
-    return [
-      { key: "platform", label: "Platform", type: "text" },
-      { key: "topstepx_api_key", label: "TopStepX API Key", type: "password" },
-      {
-        key: "topstepx_api_secret",
-        label: "TopStepX API Secret",
-        type: "password",
-      },
-    ];
-  }
-  if (provider === "tradeify" || provider === "lucid") {
-    return [
-      { key: "platform", label: "Platform", type: "text" },
-      {
-        key: "tradovate_username",
-        label: "Tradovate Username",
-        type: "text",
-      },
-      {
-        key: "tradovate_password",
-        label: "Tradovate Password",
-        type: "password",
-      },
-    ];
-  }
-  return [];
-}
 
 function DashboardTab({
   connection,
@@ -659,7 +611,6 @@ function ConnectTab({
   const { t, locale } = useI18n();
   const [selectedProvider, setSelectedProvider] = useState("");
   const [accountId, setAccountId] = useState("");
-  const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [uploadingCsvId, setUploadingCsvId] = useState<string | null>(null);
@@ -668,20 +619,6 @@ function ConnectTab({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showEaInfo, setShowEaInfo] = useState(false);
 
-  const credentialFields = useMemo(
-    () => getCredentialFields(selectedProvider),
-    [selectedProvider]
-  );
-
-  const handleProviderSelect = (providerId: string) => {
-    setSelectedProvider(providerId);
-    setCredentials({});
-  };
-
-  const handleCredentialChange = (key: string, value: string) => {
-    setCredentials((prev) => ({ ...prev, [key]: value }));
-  };
-
   const handleSubmit = async () => {
     if (!selectedProvider || !accountId) return;
     setSubmitting(true);
@@ -689,11 +626,10 @@ function ConnectTab({
       await api.post("/api/v1/broker/connections", {
         provider: selectedProvider,
         account_identifier: accountId,
-        credentials,
+        credentials: {},
       });
       setSelectedProvider("");
       setAccountId("");
-      setCredentials({});
       onConnectionChange();
     } catch {
     } finally {
@@ -1041,38 +977,9 @@ function ConnectTab({
                 placeholder={t("journal.accountIdPlaceholder")}
               />
             </div>
-
-            {credentialFields.map((field) => (
-              <div key={field.key}>
-                <label className="label">{field.label}</label>
-                {field.type === "select" && field.options ? (
-                  <select
-                    value={credentials[field.key] || ""}
-                    onChange={(e) =>
-                      handleCredentialChange(field.key, e.target.value)
-                    }
-                    className="input-field"
-                  >
-                    <option value="">— seleziona —</option>
-                    {field.options.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt.toUpperCase()}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type={field.type}
-                    value={credentials[field.key] || ""}
-                    onChange={(e) =>
-                      handleCredentialChange(field.key, e.target.value)
-                    }
-                    className="input-field"
-                  />
-                )}
-              </div>
-            ))}
-
+            <p className="text-xs text-surface-500">
+              Dopo aver aggiunto la connessione potrai caricare un CSV o configurare l&rsquo;EA per MT4/MT5.
+            </p>
             <button
               onClick={handleSubmit}
               disabled={submitting || !accountId}

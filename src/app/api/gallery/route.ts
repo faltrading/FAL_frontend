@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { getSupabaseAdmin, ensureGalleryBucket } from "@/lib/supabase-admin";
 import { verifyToken, isAdminToken, unauthorized, forbidden } from "@/lib/api-auth";
 
 /**
@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
+    await ensureGalleryBucket();
     const filePath = `uploads/${Date.now()}_${file.name}`;
 
     // Convert File to Buffer for reliable server-side upload

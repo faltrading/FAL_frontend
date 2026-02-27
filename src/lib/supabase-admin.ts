@@ -27,3 +27,43 @@ export function getSupabaseAdmin(): SupabaseClient {
   });
   return _client;
 }
+
+/**
+ * Ensure the "gallery" storage bucket exists.
+ * Creates it (public, 50 MB limit) if missing. Safe to call multiple times.
+ */
+let _bucketReady = false;
+
+export async function ensureGalleryBucket(): Promise<void> {
+  if (_bucketReady) return;
+
+  const supabase = getSupabaseAdmin();
+  const { data: buckets } = await supabase.storage.listBuckets();
+  const exists = buckets?.some((b) => b.id === "gallery");
+
+  if (!exists) {
+    const { error } = await supabase.storage.createBucket("gallery", {
+      public: true,
+      fileSizeLimit: 52428800, // 50 MB
+      allowedMimeTypes: [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "image/svg+xml",
+        "video/mp4",
+        "video/webm",
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ],
+    });
+    if (error) {
+      console.error("[supabase-admin] Failed to create gallery bucket:", error.message);
+      throw error;
+    }
+    console.log("[supabase-admin] Created 'gallery' storage bucket");
+  }
+
+  _bucketReady = true;
+}

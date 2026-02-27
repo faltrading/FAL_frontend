@@ -55,6 +55,7 @@ function DashboardTab({
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const fetchDashboard = useCallback(async () => {
     if (!connection) return;
@@ -78,11 +79,16 @@ function DashboardTab({
   const handleSync = async () => {
     if (!connection) return;
     setSyncing(true);
+    setSyncError(null);
     try {
       await api.post(`/api/v1/broker/connections/${connection.id}/sync`);
       await fetchDashboard();
-    } catch (err) {
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Sync failed";
+      setSyncError(msg);
       console.error("[Journal] handleSync error:", err);
+      setTimeout(() => setSyncError(null), 5000);
     } finally {
       setSyncing(false);
     }
@@ -170,7 +176,13 @@ function DashboardTab({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-3">
+        {syncError && (
+          <span className="flex items-center gap-1.5 text-sm text-error-400">
+            <XCircle className="h-4 w-4 flex-shrink-0" />
+            {syncError}
+          </span>
+        )}
         <button
           onClick={handleSync}
           disabled={syncing}
@@ -302,7 +314,7 @@ function TradesTab({ connection }: { connection: BrokerConnection | null }) {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<"all" | "open" | "closed">("all");
 
-  useEffect(() => {
+  const fetchTrades = useCallback(() => {
     if (!connection) return;
     setLoading(true);
     api
@@ -313,6 +325,10 @@ function TradesTab({ connection }: { connection: BrokerConnection | null }) {
       .catch((err) => console.error("[Journal] fetchTrades error:", err))
       .finally(() => setLoading(false));
   }, [connection]);
+
+  useEffect(() => {
+    fetchTrades();
+  }, [fetchTrades]);
 
   const filteredTrades = useMemo(() => {
     if (filter === "all") return trades;
@@ -344,7 +360,7 @@ function TradesTab({ connection }: { connection: BrokerConnection | null }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
         {filterOptions.map((opt) => (
           <button
             key={opt.key}
@@ -359,6 +375,14 @@ function TradesTab({ connection }: { connection: BrokerConnection | null }) {
             {opt.label}
           </button>
         ))}
+        <button
+          onClick={fetchTrades}
+          disabled={loading}
+          title={t("journal.refresh") ?? "Refresh"}
+          className="ml-auto p-2 rounded-lg bg-surface-800 text-surface-300 hover:bg-surface-700 disabled:opacity-50 transition-colors"
+        >
+          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+        </button>
       </div>
 
       <div className="card overflow-x-auto">
@@ -616,6 +640,7 @@ function ConnectTab({
   const [submitting, setSubmitting] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [uploadingCsvId, setUploadingCsvId] = useState<string | null>(null);
+  const [syncFeedback, setSyncFeedback] = useState<{ id: string; ok: boolean; msg: string } | null>(null);
   const [csvFeedback, setCsvFeedback] = useState<{ id: string; ok: boolean; msg: string } | null>(null);
   const [eaGeneratingId, setEaGeneratingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -642,11 +667,15 @@ function ConnectTab({
 
   const handleSync = async (connectionId: string) => {
     setSyncingId(connectionId);
+    setSyncFeedback(null);
     try {
       await api.post(`/api/v1/broker/connections/${connectionId}/sync`);
+      setSyncFeedback({ id: connectionId, ok: true, msg: "Sincronizzazione completata" });
       onConnectionChange();
     } catch (err) {
       console.error("[Journal] handleSync error:", err);
+      const msg = err instanceof Error ? err.message : "Errore durante la sincronizzazione";
+      setSyncFeedback({ id: connectionId, ok: false, msg });
     } finally {
       setSyncingId(null);
     }
@@ -860,6 +889,25 @@ function ConnectTab({
                     )}
                   </div>
                 </div>
+
+                {/* Sync feedback */}
+                {syncFeedback?.id === conn.id && (
+                  <div
+                    className={cn(
+                      "flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg",
+                      syncFeedback.ok
+                        ? "bg-success-500/10 text-success-400"
+                        : "bg-error-500/10 text-error-400"
+                    )}
+                  >
+                    {syncFeedback.ok ? (
+                      <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                    ) : (
+                      <XCircle className="h-3.5 w-3.5 shrink-0" />
+                    )}
+                    {syncFeedback.msg}
+                  </div>
+                )}
 
                 {/* CSV feedback */}
                 {csvFeedback?.id === conn.id && (

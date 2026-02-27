@@ -195,9 +195,19 @@ export interface BrokerTrade {
 export interface DailyStat {
   date: string;
   total_pnl: number;
-  trade_count: number;
-  win_count: number;
-  loss_count: number;
+  cumulative_pnl: number;
+  trade_count?: number;
+  win_count?: number;
+  loss_count?: number;
+}
+
+export interface DashboardRecentTrade {
+  id: string;
+  symbol: string;
+  side: "buy" | "sell";
+  volume: number;
+  pnl: number | null;
+  close_time: string | null;
 }
 
 export interface DashboardData {
@@ -209,10 +219,22 @@ export interface DashboardData {
     average_win: number;
     average_loss: number;
     max_drawdown: number;
+    day_win_rate?: number;
+    avg_win_loss_ratio?: number;
   };
   daily_pnl: DailyStat[];
-  recent_trades: BrokerTrade[];
-  open_positions: BrokerTrade[];
+  recent_trades: DashboardRecentTrade[];
+  open_positions: Array<{
+    symbol: string;
+    side: string;
+    open_time: string;
+    open_price: number;
+    volume: number;
+    current_pnl: number | null;
+  }>;
+  last_sync_at: string | null;
+  provider: string;
+  account_identifier: string;
 }
 
 export interface NewsEvent {

@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node supabase/check.mjs && next dev",
     "build": "node supabase/check.mjs && next build",
-    "start": "next start",
+    "start": "next start -p ${PORT:-3000}",
     "lint": "next lint",
     "db:setup": "node supabase/setup.mjs",
     "db:check": "node supabase/check.mjs"

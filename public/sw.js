@@ -1,4 +1,4 @@
-const CACHE_NAME = "fal-v1";
+const CACHE_NAME = "fal-v2";
 const STATIC_ASSETS = ["/", "/offline"];
 
 self.addEventListener("install", (event) => {
@@ -29,6 +29,11 @@ self.addEventListener("fetch", (event) => {
 
   // Don't intercept API routes even on same origin
   if (url.pathname.startsWith("/api")) return;
+
+  // Never cache _next/static assets — they are content-hashed and managed
+  // by the browser HTTP cache. Caching them in the SW causes stale chunk
+  // errors after every redeployment.
+  if (url.pathname.startsWith("/_next/")) return;
 
   event.respondWith(
     caches.match(request).then((cached) => {

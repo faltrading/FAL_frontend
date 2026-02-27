@@ -214,7 +214,7 @@ export default function GalleryPage() {
               ref={fileInputRef}
               type="file"
               multiple
-              accept="image/*,video/*,.pdf,.doc,.docx"
+              accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar"
               onChange={handleUpload}
               className="hidden"
               id="gallery-upload"

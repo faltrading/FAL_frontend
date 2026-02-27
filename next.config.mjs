@@ -1,5 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Remove body-size cap so large video / document uploads work through API routes
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "500mb",
+    },
+  },
   async headers() {
     return [
       {

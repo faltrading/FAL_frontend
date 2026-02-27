@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useI18n } from "@/lib/i18n";
 import { cn, formatDateTime, formatPnl } from "@/lib/utils";
 import { api } from "@/lib/api";
@@ -29,6 +29,13 @@ import {
   Plus,
   Loader2,
   Unplug,
+  Copy,
+  Download,
+  Key,
+  CheckCircle,
+  XCircle,
+  HelpCircle,
+  X,
 } from "lucide-react";
 
 const PROVIDERS = [
@@ -655,8 +662,11 @@ function ConnectTab({
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
-  const csvInputRef = useRef<HTMLInputElement>(null);
   const [uploadingCsvId, setUploadingCsvId] = useState<string | null>(null);
+  const [csvFeedback, setCsvFeedback] = useState<{ id: string; ok: boolean; msg: string } | null>(null);
+  const [eaGeneratingId, setEaGeneratingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showEaInfo, setShowEaInfo] = useState(false);
 
   const credentialFields = useMemo(
     () => getCredentialFields(selectedProvider),
@@ -709,100 +719,288 @@ function ConnectTab({
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingCsvId(connectionId);
+    setCsvFeedback(null);
     try {
       const formData = new FormData();
       formData.append("file", file);
-      await api.upload(
+      const res = await api.upload(
         `/api/v1/broker/connections/${connectionId}/import-csv`,
         formData
-      );
+      ) as { trades_imported?: number };
+      setCsvFeedback({
+        id: connectionId,
+        ok: true,
+        msg: `${res?.trades_imported ?? "?"} trade importati con successo`,
+      });
+      onConnectionChange();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Errore durante l'import CSV";
+      setCsvFeedback({ id: connectionId, ok: false, msg });
+    } finally {
+      setUploadingCsvId(null);
+      e.target.value = "";
+    }
+  };
+
+  const handleGenerateEaToken = async (connectionId: string) => {
+    setEaGeneratingId(connectionId);
+    try {
+      await api.post(`/api/v1/broker/connections/${connectionId}/ea-token`);
       onConnectionChange();
     } catch {
     } finally {
-      setUploadingCsvId(null);
-      if (csvInputRef.current) {
-        csvInputRef.current.value = "";
-      }
+      setEaGeneratingId(null);
     }
+  };
+
+  const copyToken = async (token: string, connId: string) => {
+    await navigator.clipboard.writeText(token);
+    setCopiedId(connId);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const downloadEa = async (conn: BrokerConnection) => {
+    const token = conn.metadata?.ea_token as string | undefined;
+    if (!token) return;
+    const gatewayUrl = window.location.hostname === "localhost"
+      ? "https://YOUR-GATEWAY-URL"
+      : window.location.origin;
+    const res = await fetch("/ea/FAL_Journal.mq4");
+    let content = await res.text();
+    content = content.replace("%%GATEWAY_URL%%", gatewayUrl);
+    content = content.replace("%%EA_TOKEN%%", token);
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `FAL_Journal_${conn.account_identifier}.mq4`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
     <div className="space-y-6">
+      {/* EA Info Modal */}
+      {showEaInfo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setShowEaInfo(false)}
+        >
+          <div
+            className="bg-surface-900 border border-surface-700 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-base font-semibold text-surface-100 flex items-center gap-2">
+                <Key className="h-4 w-4 text-brand-400" />
+                Come funziona l&rsquo;EA
+              </h3>
+              <button
+                onClick={() => setShowEaInfo(false)}
+                className="text-surface-500 hover:text-surface-300 transition-colors shrink-0"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <ul className="space-y-3 text-sm text-surface-300">
+              <li className="flex gap-2">
+                <span className="text-brand-400 font-bold shrink-0">1.</span>
+                <span>Il file <code className="text-brand-300">.mq4</code> si scarica <strong>una volta sola</strong> e resta permanentemente in MetaTrader. Non serve ri-scaricarlo ad ogni sessione.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-brand-400 font-bold shrink-0">2.</span>
+                <span>L&rsquo;EA invia i trade chiusi in automatico ogni 60 secondi finché MetaTrader è aperto. Non devi fare nulla.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-brand-400 font-bold shrink-0">3.</span>
+                <span>Il token è incorporato nel file. Se premi <strong>Rigenera</strong>, il vecchio token non funzionerà più e dovrai ri-scaricare il <code className="text-brand-300">.mq4</code> aggiornato e copiarlo su MetaTrader.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-brand-400 font-bold shrink-0">4.</span>
+                <span>Per la prima installazione: copia il file in <code className="text-surface-400">MetaTrader/MQL4/Experts/</code>, apri MetaEditor, premi <kbd className="bg-surface-800 px-1 rounded">F7</kbd> per compilare, poi trascina l&rsquo;EA su un grafico.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-brand-400 font-bold shrink-0">5.</span>
+                <span>Aggiungi l&rsquo;URL del server alla whitelist: <em>Strumenti → Opzioni → Expert Advisor → Consenti WebRequest per i seguenti URL</em>.</span>
+              </li>
+            </ul>
+            <button
+              onClick={() => setShowEaInfo(false)}
+              className="btn-primary w-full text-sm"
+            >
+              Capito
+            </button>
+          </div>
+        </div>
+      )}
+
       {connections.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-surface-200">
             {t("journal.existingConnections")}
           </h3>
-          {connections.map((conn) => (
-            <div
-              key={conn.id}
-              className="card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className={cn(
-                    "w-2.5 h-2.5 rounded-full",
-                    conn.connection_status === "active"
-                      ? "bg-success-500"
-                      : conn.connection_status === "error"
-                        ? "bg-error-500"
-                        : "bg-surface-500"
-                  )}
-                />
-                <div>
-                  <p className="text-sm font-medium text-surface-100">
-                    {conn.provider.toUpperCase()} - {conn.account_identifier}
-                  </p>
-                  <p className="text-xs text-surface-500">
-                    {conn.last_sync_at
-                      ? `${t("journal.lastSync")}: ${formatDateTime(
-                          conn.last_sync_at,
-                          locale
-                        )}`
-                      : t("journal.neverSynced")}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleSync(conn.id)}
-                  disabled={syncingId === conn.id}
-                  className="btn-secondary text-xs py-1.5"
-                >
-                  {syncingId === conn.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-3.5 w-3.5" />
-                  )}
-                  {t("journal.sync")}
-                </button>
-                <div className="relative">
-                  <input
-                    ref={csvInputRef}
-                    type="file"
-                    accept=".csv"
-                    onChange={(e) => handleCsvUpload(conn.id, e)}
-                    className="hidden"
-                    id={`csv-${conn.id}`}
-                  />
-                  <button
-                    onClick={() =>
-                      document.getElementById(`csv-${conn.id}`)?.click()
-                    }
-                    disabled={uploadingCsvId === conn.id}
-                    className="btn-secondary text-xs py-1.5"
-                  >
-                    {uploadingCsvId === conn.id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Upload className="h-3.5 w-3.5" />
+          {connections.map((conn) => {
+            const eaToken = conn.metadata?.ea_token as string | undefined;
+            return (
+              <div key={conn.id} className="card flex flex-col gap-3">
+                {/* Main row */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        "w-2.5 h-2.5 rounded-full shrink-0",
+                        conn.connection_status === "active"
+                          ? "bg-success-500"
+                          : conn.connection_status === "error"
+                            ? "bg-error-500"
+                            : "bg-surface-500"
+                      )}
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-surface-100">
+                        {conn.provider.toUpperCase()} — {conn.account_identifier}
+                      </p>
+                      <p className="text-xs text-surface-500">
+                        {conn.last_sync_at
+                          ? `${t("journal.lastSync")}: ${formatDateTime(conn.last_sync_at, locale)}`
+                          : t("journal.neverSynced")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => handleSync(conn.id)}
+                      disabled={syncingId === conn.id}
+                      className="btn-secondary text-xs py-1.5"
+                    >
+                      {syncingId === conn.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      )}
+                      {t("journal.sync")}
+                    </button>
+                    {/* CSV Upload */}
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={(e) => handleCsvUpload(conn.id, e)}
+                      className="hidden"
+                      id={`csv-${conn.id}`}
+                    />
+                    <button
+                      onClick={() => document.getElementById(`csv-${conn.id}`)?.click()}
+                      disabled={uploadingCsvId === conn.id}
+                      className="btn-secondary text-xs py-1.5"
+                    >
+                      {uploadingCsvId === conn.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Upload className="h-3.5 w-3.5" />
+                      )}
+                      CSV
+                    </button>
+                    {/* EA Token button (only if no token yet) */}
+                    {!eaToken && (
+                      <button
+                        onClick={() => handleGenerateEaToken(conn.id)}
+                        disabled={eaGeneratingId === conn.id}
+                        className="btn-secondary text-xs py-1.5"
+                        title="Genera Token EA per MT4/MT5"
+                      >
+                        {eaGeneratingId === conn.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Key className="h-3.5 w-3.5" />
+                        )}
+                        EA Token
+                      </button>
                     )}
-                    CSV
-                  </button>
+                  </div>
                 </div>
+
+                {/* CSV feedback */}
+                {csvFeedback?.id === conn.id && (
+                  <div
+                    className={cn(
+                      "flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg",
+                      csvFeedback.ok
+                        ? "bg-success-500/10 text-success-400"
+                        : "bg-error-500/10 text-error-400"
+                    )}
+                  >
+                    {csvFeedback.ok ? (
+                      <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                    ) : (
+                      <XCircle className="h-3.5 w-3.5 shrink-0" />
+                    )}
+                    {csvFeedback.msg}
+                  </div>
+                )}
+
+                {/* EA section — visible once token is generated */}
+                {eaToken && (
+                  <div className="border-t border-surface-700 pt-3 space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-medium text-surface-400">EA per MT4/MT5</p>
+                      <button
+                        onClick={() => setShowEaInfo(true)}
+                        className="text-surface-500 hover:text-brand-400 transition-colors"
+                        title="Come funziona l'EA?"
+                      >
+                        <HelpCircle className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <code className="text-xs font-mono text-brand-300 bg-surface-800 px-2 py-1 rounded select-all">
+                        {eaToken.slice(0, 20)}…
+                      </code>
+                      <button
+                        onClick={() => copyToken(eaToken, conn.id)}
+                        className="btn-secondary text-xs py-1"
+                      >
+                        {copiedId === conn.id ? (
+                          <CheckCircle className="h-3 w-3 text-success-400" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                        {copiedId === conn.id ? "Copiato!" : "Copia"}
+                      </button>
+                      <button
+                        onClick={() => downloadEa(conn)}
+                        className="btn-secondary text-xs py-1"
+                      >
+                        <Download className="h-3 w-3" />
+                        Scarica EA (.mq4)
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm("Rigenerando il token, quello vecchio verrà invalidato e l'EA attuale smetterà di funzionare. Dovrai re-scaricare il .mq4 e aggiornarlo su MT4. Continuare?")) {
+                            handleGenerateEaToken(conn.id);
+                          }
+                        }}
+                        disabled={eaGeneratingId === conn.id}
+                        className="text-xs text-surface-500 hover:text-surface-300 transition-colors flex items-center gap-1"
+                        title="Rigenera token EA"
+                      >
+                        {eaGeneratingId === conn.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3 w-3" />
+                        )}
+                        Rigenera
+                      </button>
+                    </div>
+                    <p className="text-xs text-surface-500 leading-relaxed">
+                      1. Scarica il file .mq4 → copialo in <code className="text-surface-400">MetaTrader/MQL4/Experts/</code><br />
+                      2. Compila con F7 nell&#39;editor MetaEditor<br />
+                      3. Trascina su un grafico → <span className="text-surface-400">Strumenti &rarr; Opzioni &rarr; Expert Advisor</span> → aggiungi il tuo server alla whitelist WebRequest
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -847,14 +1045,31 @@ function ConnectTab({
             {credentialFields.map((field) => (
               <div key={field.key}>
                 <label className="label">{field.label}</label>
-                <input
-                  type={field.type}
-                  value={credentials[field.key] || ""}
-                  onChange={(e) =>
-                    handleCredentialChange(field.key, e.target.value)
-                  }
-                  className="input-field"
-                />
+                {field.type === "select" && field.options ? (
+                  <select
+                    value={credentials[field.key] || ""}
+                    onChange={(e) =>
+                      handleCredentialChange(field.key, e.target.value)
+                    }
+                    className="input-field"
+                  >
+                    <option value="">— seleziona —</option>
+                    {field.options.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type={field.type}
+                    value={credentials[field.key] || ""}
+                    onChange={(e) =>
+                      handleCredentialChange(field.key, e.target.value)
+                    }
+                    className="input-field"
+                  />
+                )}
               </div>
             ))}
 

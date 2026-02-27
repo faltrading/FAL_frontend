@@ -142,6 +142,7 @@ export interface BrokerConnection {
   connection_status: "active" | "inactive" | "error";
   last_sync_at: string | null;
   created_at: string;
+  metadata: Record<string, unknown>;
 }
 
 export interface BrokerTrade {

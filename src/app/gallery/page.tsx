@@ -309,6 +309,8 @@ function MediaViewer({
             src={url}
             controls
             autoPlay
+            preload="metadata"
+            playsInline
             className="max-w-full max-h-[85vh] rounded-lg"
           />
         )}

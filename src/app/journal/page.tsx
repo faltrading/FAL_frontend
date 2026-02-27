@@ -701,13 +701,13 @@ function ConnectTab({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const downloadEa = async (conn: BrokerConnection) => {
+  const downloadEa = async (conn: BrokerConnection, version: "mq4" | "mq5") => {
     const token = conn.metadata?.ea_token as string | undefined;
     if (!token) return;
     const gatewayUrl = window.location.hostname === "localhost"
       ? "https://YOUR-GATEWAY-URL"
       : window.location.origin;
-    const res = await fetch("/ea/FAL_Journal.mq4");
+    const res = await fetch(`/ea/FAL_Journal.${version}`);
     let content = await res.text();
     content = content.replace("%%GATEWAY_URL%%", gatewayUrl);
     content = content.replace("%%EA_TOKEN%%", token);
@@ -715,7 +715,7 @@ function ConnectTab({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `FAL_Journal_${conn.account_identifier}.mq4`;
+    a.download = `FAL_Journal_${conn.account_identifier}.${version}`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -759,7 +759,7 @@ function ConnectTab({
               </li>
               <li className="flex gap-2">
                 <span className="text-brand-400 font-bold shrink-0">4.</span>
-                <span>Per la prima installazione: copia il file in <code className="text-surface-400">MetaTrader/MQL4/Experts/</code>, apri MetaEditor, premi <kbd className="bg-surface-800 px-1 rounded">F7</kbd> per compilare, poi trascina l&rsquo;EA su un grafico.</span>
+                <span>Per la prima installazione: copia il file in <code className="text-surface-400">MQL4/Experts/</code> (MT4) o <code className="text-surface-400">MQL5/Experts/</code> (MT5), apri MetaEditor, premi <kbd className="bg-surface-800 px-1 rounded">F7</kbd> per compilare, poi trascina l&rsquo;EA su un grafico.</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-brand-400 font-bold shrink-0">5.</span>
@@ -909,11 +909,18 @@ function ConnectTab({
                         {copiedId === conn.id ? "Copiato!" : "Copia"}
                       </button>
                       <button
-                        onClick={() => downloadEa(conn)}
+                        onClick={() => downloadEa(conn, "mq4")}
                         className="btn-secondary text-xs py-1"
                       >
                         <Download className="h-3 w-3" />
-                        Scarica EA (.mq4)
+                        MT4 (.mq4)
+                      </button>
+                      <button
+                        onClick={() => downloadEa(conn, "mq5")}
+                        className="btn-secondary text-xs py-1"
+                      >
+                        <Download className="h-3 w-3" />
+                        MT5 (.mq5)
                       </button>
                       <button
                         onClick={() => {
@@ -934,9 +941,10 @@ function ConnectTab({
                       </button>
                     </div>
                     <p className="text-xs text-surface-500 leading-relaxed">
-                      1. Scarica il file .mq4 → copialo in <code className="text-surface-400">MetaTrader/MQL4/Experts/</code><br />
-                      2. Compila con F7 nell&#39;editor MetaEditor<br />
-                      3. Trascina su un grafico → <span className="text-surface-400">Strumenti &rarr; Opzioni &rarr; Expert Advisor</span> → aggiungi il tuo server alla whitelist WebRequest
+                      1. Scarica il file per la tua piattaforma (.mq4 = MT4, .mq5 = MT5)<br />
+                      2. Copialo in <code className="text-surface-400">MQL4/Experts/</code> o <code className="text-surface-400">MQL5/Experts/</code><br />
+                      3. Compila con F7 in MetaEditor, trascina su un grafico<br />
+                      4. <span className="text-surface-400">Strumenti &rarr; Opzioni &rarr; Expert Advisor</span> → aggiungi il server alla whitelist WebRequest
                     </p>
                   </div>
                 )}

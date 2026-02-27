@@ -481,7 +481,10 @@ export default function GalleryPage() {
       if (selectedCategory === "videos")
         return file.file_type.startsWith("video/");
       if (selectedCategory === "documents")
-        return file.file_type.startsWith("application/");
+        return (
+          !file.file_type.startsWith("image/") &&
+          !file.file_type.startsWith("video/")
+        );
       return true;
     });
   }, [files, selectedCategory]);

@@ -2,13 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, ensureGalleryBucket } from "@/lib/supabase-admin";
 import { verifyToken, isAdminToken, unauthorized, forbidden } from "@/lib/api-auth";
 
-// Remove Next.js default body size limit so large videos/files can be uploaded
-export const config = {
-  api: { bodyParser: false },
-};
-
-// Next.js App Router: disable body size limit
-export const maxDuration = 300; // allow up to 5 min for large uploads
+// App Router route segment config — allow up to 5 min for large uploads
+export const maxDuration = 300;
+export const dynamic = "force-dynamic";
 
 /**
  * GET /api/gallery — list all gallery files (authenticated users)

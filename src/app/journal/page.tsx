@@ -951,7 +951,7 @@ function ConnectTab({
             {PROVIDERS.map((p) => (
               <button
                 key={p.id}
-                onClick={() => handleProviderSelect(p.id)}
+                onClick={() => setSelectedProvider(p.id)}
                 className={cn(
                   "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                   selectedProvider === p.id

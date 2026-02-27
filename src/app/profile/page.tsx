@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { api } from "@/lib/api";
-import { formatDate, formatTime, getInitials } from "@/lib/utils";
+import { formatDate, getInitials } from "@/lib/utils";
 import type { CalendarSlot, Booking } from "@/lib/types";
+import { LessonCalendar, type CalendarEvent } from "@/components/calendar/LessonCalendar";
 import {
   User,
   CalendarDays,
@@ -15,8 +16,6 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
-  Clock,
-  X,
   CheckCircle,
   AlertTriangle,
 } from "lucide-react";
@@ -326,68 +325,93 @@ function ProfileTab() {
 }
 
 function CalendarTab() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const [slots, setSlots] = useState<CalendarSlot[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loadingSlots, setLoadingSlots] = useState(true);
-  const [loadingBookings, setLoadingBookings] = useState(true);
-  const [bookingNotes, setBookingNotes] = useState<Record<string, string>>({});
-  const [bookingSlot, setBookingSlot] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
-  const fetchSlots = useCallback(() => {
-    setLoadingSlots(true);
-    api
-      .get<CalendarSlot[]>("/api/v1/calendar/slots")
-      .then((data) => setSlots(data.filter((s) => !s.is_booked)))
-      .catch(() => {})
-      .finally(() => setLoadingSlots(false));
-  }, []);
-
-  const fetchBookings = useCallback(() => {
-    setLoadingBookings(true);
-    api
-      .get<Booking[]>("/api/v1/calendar/bookings/mine")
-      .then(setBookings)
-      .catch(() => {})
-      .finally(() => setLoadingBookings(false));
+  const fetchData = useCallback(() => {
+    setLoading(true);
+    Promise.all([
+      api.get<CalendarSlot[]>("/api/v1/calendar/slots").catch(() => [] as CalendarSlot[]),
+      api.get<Booking[]>("/api/v1/calendar/bookings/mine").catch(() => [] as Booking[]),
+    ])
+      .then(([slotsData, bookingsData]) => {
+        setSlots(slotsData);
+        setBookings(bookingsData);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    fetchSlots();
-    fetchBookings();
-  }, [fetchSlots, fetchBookings]);
+    fetchData();
+  }, [fetchData]);
 
-  const handleBook = async (slotId: string) => {
-    setBookingSlot(slotId);
+  // Build calendar events from slots + bookings
+  const calendarEvents: CalendarEvent[] = useMemo(() => {
+    const events: CalendarEvent[] = [];
+
+    // User's bookings
+    const bookedSlotIds = new Set(
+      bookings.filter((b) => b.status === "confirmed").map((b) => b.slot_id)
+    );
+
+    for (const b of bookings) {
+      events.push({
+        id: `booking-${b.id}`,
+        start: b.start_time,
+        end: b.end_time,
+        type: b.status === "confirmed" ? "my-booking" : "cancelled",
+        bookingId: b.id,
+        slotId: b.slot_id,
+        notes: b.notes,
+      });
+    }
+
+    // Available slots (not booked by this user)
+    for (const s of slots) {
+      if (!s.is_booked && !bookedSlotIds.has(s.id)) {
+        events.push({
+          id: `slot-${s.id}`,
+          start: s.start_time,
+          end: s.end_time,
+          type: "available",
+          slotId: s.id,
+        });
+      }
+    }
+
+    return events;
+  }, [slots, bookings]);
+
+  const handleBookSlot = async (ev: CalendarEvent, notes: string) => {
     setMessage("");
     try {
       await api.post("/api/v1/calendar/bookings", {
-        slot_id: slotId,
-        notes: bookingNotes[slotId] || "",
+        slot_id: ev.slotId,
+        notes: notes || "",
       });
       setMessage(t("profile.bookingConfirmed"));
-      fetchSlots();
-      fetchBookings();
+      fetchData();
     } catch {
-    } finally {
-      setBookingSlot(null);
+      /* handled by api */
     }
   };
 
-  const handleCancelBooking = async (bookingId: string) => {
+  const handleCancelBooking = async (ev: CalendarEvent) => {
     setMessage("");
     try {
-      await api.delete(`/api/v1/calendar/bookings/${bookingId}`);
+      await api.delete(`/api/v1/calendar/bookings/${ev.bookingId}`);
       setMessage(t("profile.bookingCancelled"));
-      fetchSlots();
-      fetchBookings();
+      fetchData();
     } catch {
+      /* handled by api */
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {message && (
         <div className="flex items-center gap-2 text-sm text-success-400 bg-success-500/10 p-3 rounded-lg">
           <CheckCircle className="h-4 w-4" />
@@ -395,119 +419,12 @@ function CalendarTab() {
         </div>
       )}
 
-      <div className="card">
-        <div className="flex items-center gap-2 mb-4">
-          <CalendarDays className="h-5 w-5 text-brand-400" />
-          <h3 className="text-base font-semibold text-surface-100">{t("profile.availableSlots")}</h3>
-        </div>
-        {loadingSlots ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="h-6 w-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : slots.length === 0 ? (
-          <div className="flex items-center gap-3 text-surface-400 py-4">
-            <Clock className="h-5 w-5" />
-            <p className="text-sm">{t("profile.noSlots")}</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {slots.map((slot) => (
-              <div
-                key={slot.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg bg-surface-900 border border-surface-700"
-              >
-                <div>
-                  <p className="text-sm font-medium text-surface-100">
-                    {formatDate(slot.start_time, locale)}
-                  </p>
-                  <p className="text-xs text-surface-400">
-                    {formatTime(slot.start_time, locale)} - {formatTime(slot.end_time, locale)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    placeholder={t("profile.notes")}
-                    value={bookingNotes[slot.id] || ""}
-                    onChange={(e) =>
-                      setBookingNotes((prev) => ({ ...prev, [slot.id]: e.target.value }))
-                    }
-                    className="input-field text-xs py-1.5 w-40"
-                  />
-                  <button
-                    onClick={() => handleBook(slot.id)}
-                    disabled={bookingSlot === slot.id}
-                    className="btn-primary text-xs py-1.5"
-                  >
-                    {bookingSlot === slot.id ? (
-                      <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : null}
-                    {t("profile.book")}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="card">
-        <div className="flex items-center gap-2 mb-4">
-          <CalendarDays className="h-5 w-5 text-brand-400" />
-          <h3 className="text-base font-semibold text-surface-100">{t("profile.myBookings")}</h3>
-        </div>
-        {loadingBookings ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="h-6 w-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : bookings.length === 0 ? (
-          <div className="flex items-center gap-3 text-surface-400 py-4">
-            <Clock className="h-5 w-5" />
-            <p className="text-sm">{t("profile.noBookings")}</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {bookings.map((booking) => (
-              <div
-                key={booking.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg bg-surface-900 border border-surface-700"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-surface-100">
-                      {formatDate(booking.start_time, locale)}
-                    </p>
-                    <span
-                      className={
-                        booking.status === "confirmed"
-                          ? "badge-success"
-                          : "badge-error"
-                      }
-                    >
-                      {booking.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-surface-400">
-                    {formatTime(booking.start_time, locale)} - {formatTime(booking.end_time, locale)}
-                  </p>
-                  {booking.notes && (
-                    <p className="text-xs text-surface-500 mt-1">{booking.notes}</p>
-                  )}
-                </div>
-                {booking.status === "confirmed" && (
-                  <button
-                    onClick={() => handleCancelBooking(booking.id)}
-                    className="btn-ghost text-error-400 hover:text-error-300 text-xs"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                    {t("common.cancel")}
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <LessonCalendar
+        events={calendarEvents}
+        loading={loading}
+        onBookSlot={handleBookSlot}
+        onCancelBooking={handleCancelBooking}
+      />
     </div>
   );
 }

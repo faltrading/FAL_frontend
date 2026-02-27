@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { api } from "@/lib/api";
 import { cn, formatDate, formatTime } from "@/lib/utils";
 import type { User, CalendarSettings, Booking, PaymentPlan } from "@/lib/types";
+import { LessonCalendar, type CalendarEvent } from "@/components/calendar/LessonCalendar";
 import {
   Users,
   Settings,
@@ -102,8 +103,17 @@ function UsersTab() {
   );
 }
 
+interface AdminSlot {
+  id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  is_available: boolean;
+  created_by?: string;
+}
+
 function CalendarSettingsTab() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [, setSettings] = useState<CalendarSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -120,6 +130,14 @@ function CalendarSettingsTab() {
   const [excludeWeekends, setExcludeWeekends] = useState(true);
   const [batchCreating, setBatchCreating] = useState(false);
   const [batchMessage, setBatchMessage] = useState("");
+
+  // Calendar data
+  const [adminSlots, setAdminSlots] = useState<AdminSlot[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+
+  // Panel state
+  const [showSettings, setShowSettings] = useState(false);
 
   const timezones = [
     "UTC",
@@ -139,6 +157,19 @@ function CalendarSettingsTab() {
     "Pacific/Auckland",
   ];
 
+  const fetchCalendarData = useCallback(() => {
+    setDataLoading(true);
+    Promise.all([
+      api.get<AdminSlot[]>("/api/v1/calendar/slots").catch(() => [] as AdminSlot[]),
+      api.get<Booking[]>("/api/v1/calendar/bookings").catch(() => [] as Booking[]),
+    ])
+      .then(([slotsData, bookingsData]) => {
+        setAdminSlots(slotsData);
+        setBookings(bookingsData);
+      })
+      .finally(() => setDataLoading(false));
+  }, []);
+
   useEffect(() => {
     api
       .get<CalendarSettings>("/api/v1/calendar/settings")
@@ -150,7 +181,9 @@ function CalendarSettingsTab() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+
+    fetchCalendarData();
+  }, [fetchCalendarData]);
 
   const handleSaveSettings = async () => {
     setSaving(true);
@@ -183,11 +216,57 @@ function CalendarSettingsTab() {
       });
       const count = Array.isArray(result) ? result.length : (result as unknown as { created_count: number }).created_count;
       setBatchMessage(`${t("users.slotsCreated")}: ${count}`);
+      fetchCalendarData();
     } catch {
     } finally {
       setBatchCreating(false);
     }
   };
+
+  const handleDeleteSlot = async (ev: CalendarEvent) => {
+    const slotId = ev.slotId;
+    if (!slotId) return;
+    try {
+      await api.delete(`/api/v1/calendar/slots/${slotId}`);
+      fetchCalendarData();
+    } catch {
+      /* handled by api */
+    }
+  };
+
+  // Build calendar events for admin view
+  const calendarEvents: CalendarEvent[] = useMemo(() => {
+    const events: CalendarEvent[] = [];
+    const bookedSlotIds = new Set(
+      bookings.filter((b) => b.status === "confirmed").map((b) => b.slot_id)
+    );
+
+    for (const s of adminSlots) {
+      if (bookedSlotIds.has(s.id)) continue; // will show as booking below
+      events.push({
+        id: `slot-${s.id}`,
+        start: s.start_time,
+        end: s.end_time,
+        type: s.is_available ? "available" : "cancelled",
+        slotId: s.id,
+      });
+    }
+
+    for (const b of bookings) {
+      events.push({
+        id: `booking-${b.id}`,
+        start: b.start_time,
+        end: b.end_time,
+        type: b.status === "confirmed" ? "booked" : "cancelled",
+        bookingId: b.id,
+        slotId: b.slot_id,
+        username: b.username,
+        notes: b.notes,
+      });
+    }
+
+    return events;
+  }, [adminSlots, bookings]);
 
   if (loading) {
     return (
@@ -198,138 +277,177 @@ function CalendarSettingsTab() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="card">
-        <div className="flex items-center gap-2 mb-4">
-          <Settings className="h-5 w-5 text-brand-400" />
-          <h3 className="text-base font-semibold text-surface-100">{t("users.calendarSettings")}</h3>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <label className="label">{t("users.slotDuration")}</label>
-            <input
-              type="number"
-              value={slotDuration}
-              onChange={(e) => setSlotDuration(Number(e.target.value))}
-              min={5}
-              className="input-field"
-            />
-          </div>
-          <div>
-            <label className="label">{t("users.minNotice")}</label>
-            <input
-              type="number"
-              value={minNotice}
-              onChange={(e) => setMinNotice(Number(e.target.value))}
-              min={0}
-              className="input-field"
-            />
-          </div>
-          <div>
-            <label className="label">{t("users.timezone")}</label>
-            <select
-              value={timezone}
-              onChange={(e) => setTimezone(e.target.value)}
-              className="input-field"
-            >
-              {timezones.map((tz) => (
-                <option key={tz} value={tz}>
-                  {tz}
-                </option>
-              ))}
-            </select>
-          </div>
-          {message && (
-            <div className="flex items-center gap-2 text-sm text-success-400">
-              <CheckCircle className="h-4 w-4" />
-              {message}
-            </div>
-          )}
-          <button onClick={handleSaveSettings} disabled={saving} className="btn-primary">
-            {saving ? (
-              <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            {t("common.save")}
-          </button>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="flex items-center gap-2 mb-4">
-          <CalendarDays className="h-5 w-5 text-brand-400" />
-          <h3 className="text-base font-semibold text-surface-100">{t("users.batchCreateSlots")}</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="label">{t("users.startDate")}</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="input-field"
-            />
-          </div>
-          <div>
-            <label className="label">{t("users.endDate")}</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="input-field"
-            />
-          </div>
-          <div>
-            <label className="label">{t("users.startTime")}</label>
-            <input
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className="input-field"
-            />
-          </div>
-          <div>
-            <label className="label">{t("users.endTime")}</label>
-            <input
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-              className="input-field"
-            />
-          </div>
-        </div>
-        <div className="flex items-center gap-2 mt-4">
-          <input
-            type="checkbox"
-            id="excludeWeekends"
-            checked={excludeWeekends}
-            onChange={(e) => setExcludeWeekends(e.target.checked)}
-            className="h-4 w-4 rounded border-surface-600 bg-surface-900 text-brand-500 focus:ring-brand-500/40"
-          />
-          <label htmlFor="excludeWeekends" className="text-sm text-surface-300">
-            {t("users.excludeWeekends")}
-          </label>
-        </div>
-        {batchMessage && (
-          <div className="flex items-center gap-2 text-sm text-success-400 mt-4">
-            <CheckCircle className="h-4 w-4" />
-            {batchMessage}
-          </div>
-        )}
+    <div className="space-y-4">
+      {/* Settings toggle */}
+      <div className="flex items-center gap-2">
         <button
-          onClick={handleBatchCreate}
-          disabled={batchCreating || !startDate || !endDate}
-          className="btn-primary mt-4"
-        >
-          {batchCreating ? (
-            <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <Plus className="h-4 w-4" />
+          onClick={() => setShowSettings(!showSettings)}
+          className={cn(
+            "btn-secondary text-xs",
+            showSettings && "bg-brand-500/20 border-brand-500/40 text-brand-300"
           )}
-          {t("users.createSlots")}
+        >
+          <Settings className="h-4 w-4" />
+          {t("users.calendarSettings")}
+        </button>
+        <button
+          onClick={() => setShowSettings(!showSettings)}
+          className={cn(
+            "btn-secondary text-xs",
+            !showSettings && "bg-brand-500/20 border-brand-500/40 text-brand-300"
+          )}
+        >
+          <CalendarDays className="h-4 w-4" />
+          {t("users.viewCalendar")}
         </button>
       </div>
+
+      {showSettings ? (
+        <div className="space-y-6 animate-fade-in">
+          {/* Settings card */}
+          <div className="card">
+            <div className="flex items-center gap-2 mb-4">
+              <Settings className="h-5 w-5 text-brand-400" />
+              <h3 className="text-base font-semibold text-surface-100">{t("users.calendarSettings")}</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="label">{t("users.slotDuration")}</label>
+                <input
+                  type="number"
+                  value={slotDuration}
+                  onChange={(e) => setSlotDuration(Number(e.target.value))}
+                  min={5}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="label">{t("users.minNotice")}</label>
+                <input
+                  type="number"
+                  value={minNotice}
+                  onChange={(e) => setMinNotice(Number(e.target.value))}
+                  min={0}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="label">{t("users.timezone")}</label>
+                <select
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  className="input-field"
+                >
+                  {timezones.map((tz) => (
+                    <option key={tz} value={tz}>
+                      {tz}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {message && (
+              <div className="flex items-center gap-2 text-sm text-success-400 mt-3">
+                <CheckCircle className="h-4 w-4" />
+                {message}
+              </div>
+            )}
+            <button onClick={handleSaveSettings} disabled={saving} className="btn-primary mt-4">
+              {saving ? (
+                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {t("common.save")}
+            </button>
+          </div>
+
+          {/* Batch create */}
+          <div className="card">
+            <div className="flex items-center gap-2 mb-4">
+              <CalendarDays className="h-5 w-5 text-brand-400" />
+              <h3 className="text-base font-semibold text-surface-100">{t("users.batchCreateSlots")}</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="label">{t("users.startDate")}</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="label">{t("users.endDate")}</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="label">{t("users.startTime")}</label>
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="label">{t("users.endTime")}</label>
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-4">
+              <input
+                type="checkbox"
+                id="excludeWeekends"
+                checked={excludeWeekends}
+                onChange={(e) => setExcludeWeekends(e.target.checked)}
+                className="h-4 w-4 rounded border-surface-600 bg-surface-900 text-brand-500 focus:ring-brand-500/40"
+              />
+              <label htmlFor="excludeWeekends" className="text-sm text-surface-300">
+                {t("users.excludeWeekends")}
+              </label>
+            </div>
+            {batchMessage && (
+              <div className="flex items-center gap-2 text-sm text-success-400 mt-4">
+                <CheckCircle className="h-4 w-4" />
+                {batchMessage}
+              </div>
+            )}
+            <button
+              onClick={handleBatchCreate}
+              disabled={batchCreating || !startDate || !endDate}
+              className="btn-primary mt-4"
+            >
+              {batchCreating ? (
+                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              {t("users.createSlots")}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="animate-fade-in">
+          <LessonCalendar
+            events={calendarEvents}
+            loading={dataLoading}
+            isAdmin
+            onDeleteSlot={handleDeleteSlot}
+          />
+        </div>
+      )}
     </div>
   );
 }

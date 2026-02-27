@@ -4,12 +4,15 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { api } from "@/lib/api";
-import { cn, formatDate, formatTime } from "@/lib/utils";
-import type { User, CalendarSettings, Booking, PaymentPlan } from "@/lib/types";
-import { LessonCalendar, type CalendarEvent } from "@/components/calendar/LessonCalendar";
+import { cn, formatDate } from "@/lib/utils";
+import type { User, CalendarSettings, Booking, PaymentPlan, Call, JoinCallResponse, AvailabilityDay, PublicDayAvailability } from "@/lib/types";
+import {
+  LessonCalendar,
+  type BookingEvent,
+  type CallEvent,
+} from "@/components/calendar/LessonCalendar";
 import {
   Users,
-  Settings,
   CalendarDays,
   CreditCard,
   Search,
@@ -103,351 +106,190 @@ function UsersTab() {
   );
 }
 
-interface AdminSlot {
-  id: string;
-  date: string;
-  start_time: string;
-  end_time: string;
-  is_available: boolean;
-  created_by?: string;
-}
-
-function CalendarSettingsTab() {
-  const { t, locale } = useI18n();
-  const [, setSettings] = useState<CalendarSettings | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
-
-  const [slotDuration, setSlotDuration] = useState(30);
-  const [minNotice, setMinNotice] = useState(60);
-  const [timezone, setTimezone] = useState("UTC");
-
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [startTime, setStartTime] = useState("09:00");
-  const [endTime, setEndTime] = useState("17:00");
-  const [excludeWeekends, setExcludeWeekends] = useState(true);
-  const [batchCreating, setBatchCreating] = useState(false);
-  const [batchMessage, setBatchMessage] = useState("");
-
-  // Calendar data
-  const [adminSlots, setAdminSlots] = useState<AdminSlot[]>([]);
+function CalendarTab() {
+  const { t } = useI18n();
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
+  const [calls, setCalls] = useState<Call[]>([]);
+  const [generalAvailability, setGeneralAvailability] = useState<AvailabilityDay[]>([]);
+  const [availabilityDays, setAvailabilityDays] = useState<PublicDayAvailability[]>([]);
+  const [settings, setSettings] = useState<CalendarSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // Panel state
-  const [showSettings, setShowSettings] = useState(false);
+  // Compute date range for current view
+  const dateRange = useMemo(() => {
+    const from = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    from.setDate(from.getDate() - 7);
+    const to = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    to.setDate(to.getDate() + 14);
+    const fmt = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return { from: fmt(from), to: fmt(to) };
+  }, [currentMonth]);
 
-  const timezones = [
-    "UTC",
-    "America/New_York",
-    "America/Chicago",
-    "America/Denver",
-    "America/Los_Angeles",
-    "Europe/London",
-    "Europe/Paris",
-    "Europe/Berlin",
-    "Europe/Rome",
-    "Europe/Madrid",
-    "Asia/Tokyo",
-    "Asia/Shanghai",
-    "Asia/Dubai",
-    "Australia/Sydney",
-    "Pacific/Auckland",
-  ];
-
-  const fetchCalendarData = useCallback(() => {
-    setDataLoading(true);
-    Promise.all([
-      api.get<AdminSlot[]>("/api/v1/calendar/slots").catch(() => [] as AdminSlot[]),
-      api.get<Booking[]>("/api/v1/calendar/bookings").catch(() => [] as Booking[]),
-    ])
-      .then(([slotsData, bookingsData]) => {
-        setAdminSlots(slotsData);
-        setBookings(bookingsData);
-      })
-      .finally(() => setDataLoading(false));
-  }, []);
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [bookingsData, callsData, generalData, availData, settingsData] = await Promise.all([
+        api.get<Booking[]>("/api/v1/calendar/bookings").catch(() => [] as Booking[]),
+        api
+          .get<{ calls: Call[] }>("/api/v1/calls/rooms")
+          .then((r) => (Array.isArray(r) ? r : r.calls ?? []) as Call[])
+          .catch(() => [] as Call[]),
+        api.get<AvailabilityDay[]>("/api/v1/calendar/availability").catch(() => [] as AvailabilityDay[]),
+        api
+          .get<{ days: PublicDayAvailability[] }>(
+            `/api/v1/calendar/availability/public?date_from=${dateRange.from}&date_to=${dateRange.to}`,
+          )
+          .then((r) => r.days ?? [])
+          .catch(() => [] as PublicDayAvailability[]),
+        api.get<CalendarSettings>("/api/v1/calendar/settings").catch(() => null),
+      ]);
+      setBookings(bookingsData);
+      setCalls(callsData);
+      setGeneralAvailability(generalData);
+      setAvailabilityDays(availData);
+      if (settingsData) setSettings(settingsData);
+    } finally {
+      setLoading(false);
+    }
+  }, [dateRange]);
 
   useEffect(() => {
-    api
-      .get<CalendarSettings>("/api/v1/calendar/settings")
-      .then((data) => {
-        setSettings(data);
-        setSlotDuration(data.slot_duration_minutes);
-        setMinNotice(data.min_notice_minutes);
-        setTimezone(data.timezone);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    fetchAll();
+  }, [fetchAll]);
 
-    fetchCalendarData();
-  }, [fetchCalendarData]);
-
-  const handleSaveSettings = async () => {
-    setSaving(true);
-    setMessage("");
-    try {
-      const updated = await api.put<CalendarSettings>("/api/v1/calendar/settings", {
-        slot_duration_minutes: slotDuration,
-        min_notice_minutes: minNotice,
-        timezone,
-      });
-      setSettings(updated);
-      setMessage(t("users.settingsSaved"));
-    } catch {
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleBatchCreate = async () => {
-    if (!startDate || !endDate) return;
-    setBatchCreating(true);
-    setBatchMessage("");
-    try {
-      const result = await api.post<Record<string, unknown>[]>("/api/v1/calendar/slots/batch", {
-        start_date: startDate,
-        end_date: endDate,
-        start_time: startTime,
-        end_time: endTime,
-        exclude_weekends: excludeWeekends,
-      });
-      const count = Array.isArray(result) ? result.length : (result as unknown as { created_count: number }).created_count;
-      setBatchMessage(`${t("users.slotsCreated")}: ${count}`);
-      fetchCalendarData();
-    } catch {
-    } finally {
-      setBatchCreating(false);
-    }
-  };
-
-  const handleDeleteSlot = async (ev: CalendarEvent) => {
-    const slotId = ev.slotId;
-    if (!slotId) return;
-    try {
-      await api.delete(`/api/v1/calendar/slots/${slotId}`);
-      fetchCalendarData();
-    } catch {
-      /* handled by api */
-    }
-  };
-
-  // Build calendar events for admin view
-  const calendarEvents: CalendarEvent[] = useMemo(() => {
-    const events: CalendarEvent[] = [];
-    const bookedSlotIds = new Set(
-      bookings.filter((b) => b.status === "confirmed").map((b) => b.slot_id)
-    );
-
-    for (const s of adminSlots) {
-      if (bookedSlotIds.has(s.id)) continue; // will show as booking below
-      events.push({
-        id: `slot-${s.id}`,
-        start: s.start_time,
-        end: s.end_time,
-        type: s.is_available ? "available" : "cancelled",
-        slotId: s.id,
-      });
-    }
-
-    for (const b of bookings) {
-      events.push({
-        id: `booking-${b.id}`,
-        start: b.start_time,
-        end: b.end_time,
-        type: b.status === "confirmed" ? "booked" : "cancelled",
-        bookingId: b.id,
-        slotId: b.slot_id,
+  /* Map backend bookings → BookingEvent */
+  const bookingEvents: BookingEvent[] = useMemo(
+    () =>
+      bookings.map((b) => ({
+        id: b.id,
+        bookingDate: b.booking_date ?? "",
+        startTime: b.start_time ?? "",
+        endTime: b.end_time ?? "",
+        status: b.status as "confirmed" | "cancelled",
         username: b.username,
         notes: b.notes,
-      });
+      })),
+    [bookings],
+  );
+
+  /* Map calls → CallEvent */
+  const callEvents: CallEvent[] = useMemo(
+    () =>
+      calls.map((c) => ({
+        id: c.id,
+        title: c.room_name,
+        start: c.started_at || c.created_at || new Date().toISOString(),
+        end:
+          c.ended_at ||
+          new Date(
+            new Date(c.started_at || c.created_at || Date.now()).getTime() + 3600000,
+          ).toISOString(),
+        username: c.creator_username,
+        participantCount: c.participant_count ?? 0,
+        isActive: c.status === "active",
+      })),
+    [calls],
+  );
+
+  /* Handlers */
+  const handleSaveGeneralAvailability = async (days: AvailabilityDay[]) => {
+    try {
+      await api.put("/api/v1/calendar/availability", { days });
+      setMessage(t("lessonCalendar.availabilitySaved"));
+      fetchAll();
+    } catch {
+      /* */
     }
+  };
 
-    return events;
-  }, [adminSlots, bookings]);
+  const handleSaveOverride = async (ovr: {
+    override_date: string;
+    is_closed: boolean;
+    start_time: string | null;
+    end_time: string | null;
+    notes: string | null;
+  }) => {
+    try {
+      await api.post("/api/v1/calendar/availability/overrides", ovr);
+      setMessage(t("lessonCalendar.overrideSaved"));
+      fetchAll();
+    } catch {
+      /* */
+    }
+  };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-6 w-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const handleDeleteOverride = async (dateStr: string) => {
+    try {
+      await api.delete(`/api/v1/calendar/availability/overrides/${dateStr}`);
+      fetchAll();
+    } catch {
+      /* */
+    }
+  };
+
+  const handleCancelAnyBooking = async (bookingId: string) => {
+    try {
+      await api.delete(`/api/v1/calendar/bookings/${bookingId}`);
+      fetchAll();
+    } catch {
+      /* */
+    }
+  };
+
+  const handleScheduleCall = async (roomName: string) => {
+    try {
+      await api.post("/api/v1/calls/rooms", {
+        room_name: roomName || undefined,
+      });
+      setMessage(t("lessonCalendar.callStarted"));
+      fetchAll();
+    } catch {
+      /* */
+    }
+  };
+
+  const handleJoinCall = async (callId: string) => {
+    try {
+      const data = await api.post<JoinCallResponse>(`/api/v1/calls/rooms/${callId}/join`);
+      const url = data.jitsi_room_url || `https://${data.jitsi_domain}/${data.jitsi_room}`;
+      window.open(url, "_blank");
+    } catch {
+      /* */
+    }
+  };
 
   return (
     <div className="space-y-4">
-      {/* Settings toggle */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setShowSettings(!showSettings)}
-          className={cn(
-            "btn-secondary text-xs",
-            showSettings && "bg-brand-500/20 border-brand-500/40 text-brand-300"
-          )}
-        >
-          <Settings className="h-4 w-4" />
-          {t("users.calendarSettings")}
-        </button>
-        <button
-          onClick={() => setShowSettings(!showSettings)}
-          className={cn(
-            "btn-secondary text-xs",
-            !showSettings && "bg-brand-500/20 border-brand-500/40 text-brand-300"
-          )}
-        >
-          <CalendarDays className="h-4 w-4" />
-          {t("users.viewCalendar")}
-        </button>
-      </div>
-
-      {showSettings ? (
-        <div className="space-y-6 animate-fade-in">
-          {/* Settings card */}
-          <div className="card">
-            <div className="flex items-center gap-2 mb-4">
-              <Settings className="h-5 w-5 text-brand-400" />
-              <h3 className="text-base font-semibold text-surface-100">{t("users.calendarSettings")}</h3>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="label">{t("users.slotDuration")}</label>
-                <input
-                  type="number"
-                  value={slotDuration}
-                  onChange={(e) => setSlotDuration(Number(e.target.value))}
-                  min={5}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="label">{t("users.minNotice")}</label>
-                <input
-                  type="number"
-                  value={minNotice}
-                  onChange={(e) => setMinNotice(Number(e.target.value))}
-                  min={0}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="label">{t("users.timezone")}</label>
-                <select
-                  value={timezone}
-                  onChange={(e) => setTimezone(e.target.value)}
-                  className="input-field"
-                >
-                  {timezones.map((tz) => (
-                    <option key={tz} value={tz}>
-                      {tz}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            {message && (
-              <div className="flex items-center gap-2 text-sm text-success-400 mt-3">
-                <CheckCircle className="h-4 w-4" />
-                {message}
-              </div>
-            )}
-            <button onClick={handleSaveSettings} disabled={saving} className="btn-primary mt-4">
-              {saving ? (
-                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              {t("common.save")}
-            </button>
-          </div>
-
-          {/* Batch create */}
-          <div className="card">
-            <div className="flex items-center gap-2 mb-4">
-              <CalendarDays className="h-5 w-5 text-brand-400" />
-              <h3 className="text-base font-semibold text-surface-100">{t("users.batchCreateSlots")}</h3>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="label">{t("users.startDate")}</label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="label">{t("users.endDate")}</label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="label">{t("users.startTime")}</label>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="label">{t("users.endTime")}</label>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="input-field"
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-2 mt-4">
-              <input
-                type="checkbox"
-                id="excludeWeekends"
-                checked={excludeWeekends}
-                onChange={(e) => setExcludeWeekends(e.target.checked)}
-                className="h-4 w-4 rounded border-surface-600 bg-surface-900 text-brand-500 focus:ring-brand-500/40"
-              />
-              <label htmlFor="excludeWeekends" className="text-sm text-surface-300">
-                {t("users.excludeWeekends")}
-              </label>
-            </div>
-            {batchMessage && (
-              <div className="flex items-center gap-2 text-sm text-success-400 mt-4">
-                <CheckCircle className="h-4 w-4" />
-                {batchMessage}
-              </div>
-            )}
-            <button
-              onClick={handleBatchCreate}
-              disabled={batchCreating || !startDate || !endDate}
-              className="btn-primary mt-4"
-            >
-              {batchCreating ? (
-                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-              {t("users.createSlots")}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="animate-fade-in">
-          <LessonCalendar
-            events={calendarEvents}
-            loading={dataLoading}
-            isAdmin
-            onDeleteSlot={handleDeleteSlot}
-          />
+      {message && (
+        <div className="flex items-center gap-2 text-sm text-success-400 bg-success-500/10 p-3 rounded-lg animate-fade-in">
+          <CheckCircle className="h-4 w-4" />
+          {message}
+          <button onClick={() => setMessage("")} className="ml-auto text-surface-400 hover:text-surface-200">
+            <X className="h-3 w-3" />
+          </button>
         </div>
       )}
+
+      <LessonCalendar
+        bookings={bookingEvents}
+        calls={callEvents}
+        availabilityDays={availabilityDays}
+        generalAvailability={generalAvailability}
+        loading={loading}
+        isAdmin
+        currentMonth={currentMonth}
+        onMonthChange={setCurrentMonth}
+        allowBookingOutsideAvailability={settings?.allow_booking_outside_availability ?? false}
+        onSaveGeneralAvailability={handleSaveGeneralAvailability}
+        onSaveOverride={handleSaveOverride}
+        onDeleteOverride={handleDeleteOverride}
+        onCancelAnyBooking={handleCancelAnyBooking}
+        onScheduleCall={handleScheduleCall}
+        onJoinCall={handleJoinCall}
+      />
     </div>
   );
 }
@@ -513,9 +355,9 @@ function BookingsTab() {
             {filtered.map((b) => (
               <tr key={b.id} className="border-b border-surface-700/50 hover:bg-surface-700/30">
                 <td className="py-3 px-3 text-surface-100">{b.username}</td>
-                <td className="py-3 px-3 text-surface-300">{formatDate(b.start_time, locale)}</td>
+                <td className="py-3 px-3 text-surface-300">{b.booking_date ?? formatDate(b.created_at, locale)}</td>
                 <td className="py-3 px-3 text-surface-300">
-                  {formatTime(b.start_time, locale)} - {formatTime(b.end_time, locale)}
+                  {b.start_time} – {b.end_time}
                 </td>
                 <td className="py-3 px-3">
                   <span className={b.status === "confirmed" ? "badge-success" : "badge-error"}>
@@ -829,7 +671,7 @@ export default function UsersPage() {
 
   const tabs = [
     { key: "users" as const, label: t("users.users"), icon: Users },
-    { key: "calendar" as const, label: t("users.calendarSettings"), icon: Settings },
+    { key: "calendar" as const, label: t("users.calendar"), icon: CalendarDays },
     { key: "bookings" as const, label: t("users.bookings"), icon: CalendarDays },
     { key: "payments" as const, label: t("users.paymentPlans"), icon: CreditCard },
   ];
@@ -857,7 +699,7 @@ export default function UsersPage() {
       </div>
 
       {activeTab === "users" && <UsersTab />}
-      {activeTab === "calendar" && <CalendarSettingsTab />}
+      {activeTab === "calendar" && <CalendarTab />}
       {activeTab === "bookings" && <BookingsTab />}
       {activeTab === "payments" && <PaymentPlansTab />}
     </div>

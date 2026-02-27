@@ -99,28 +99,61 @@ export interface JoinCallResponse {
 
 export interface CalendarSettings {
   id: string;
-  slot_duration_minutes: number;
-  min_notice_minutes: number;
+  default_start_time: string;
+  default_end_time: string;
   timezone: string;
+  min_booking_notice_minutes: number | null;
+  max_advance_booking_days: number | null;
+  allow_cancellation: boolean;
+  cancellation_notice_minutes: number | null;
+  allow_booking_outside_availability: boolean;
 }
 
-export interface CalendarSlot {
-  id: string;
-  start_time: string;
+export interface AvailabilityDay {
+  day_of_week: number; // 0=Mon … 6=Sun
+  is_enabled: boolean;
+  start_time: string;  // HH:MM
   end_time: string;
-  is_booked: boolean;
+}
+
+export interface AvailabilityOverride {
+  id: string;
+  override_date: string;
+  is_closed: boolean;
+  start_time: string | null;
+  end_time: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PublicDayAvailability {
+  date: string;
+  is_available: boolean;
+  start_time: string | null;
+  end_time: string | null;
+  is_override: boolean;
+  notes: string | null;
+}
+
+export interface PublicAvailabilityResponse {
+  general: AvailabilityDay[];
+  overrides: AvailabilityOverride[];
+  days: PublicDayAvailability[];
+  allow_booking_outside_availability: boolean;
 }
 
 export interface Booking {
   id: string;
-  slot_id: string;
   user_id: string;
-  username: string;
-  notes: string | null;
-  status: "confirmed" | "cancelled";
+  booking_date: string;
   start_time: string;
   end_time: string;
+  status: "confirmed" | "cancelled";
+  cancelled_at: string | null;
+  notes: string | null;
   created_at: string;
+  username?: string;
 }
 
 export interface PaymentPlan {

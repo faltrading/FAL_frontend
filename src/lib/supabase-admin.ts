@@ -36,31 +36,36 @@ export function getSupabaseAdmin(): SupabaseClient {
  */
 let _bucketReady = false;
 
-const GALLERY_BUCKET_OPTIONS = {
-  public: true,
-  fileSizeLimit: 5368709120,   // 5 GB — effectively unlimited
-  allowedMimeTypes: undefined, // accept any file type
-};
+// Supabase Free tier caps at 50 MB per object. When you upgrade to Pro,
+// raise this to e.g. 5 * 1024 * 1024 * 1024 (5 GB).
+const FILE_SIZE_LIMIT = 50 * 1024 * 1024; // 50 MB
 
 export async function ensureGalleryBucket(): Promise<void> {
   if (_bucketReady) return;
 
   const supabase = getSupabaseAdmin();
   const { data: buckets } = await supabase.storage.listBuckets();
-  const exists = buckets?.some((b) => b.id === "gallery");
+  const bucket = buckets?.find((b) => b.id === "gallery");
 
-  if (!exists) {
-    const { error } = await supabase.storage.createBucket("gallery", GALLERY_BUCKET_OPTIONS);
+  const opts = {
+    public: true,
+    fileSizeLimit: FILE_SIZE_LIMIT,
+  };
+
+  if (!bucket) {
+    const { error } = await supabase.storage.createBucket("gallery", opts);
     if (error) {
       console.error("[supabase-admin] Failed to create gallery bucket:", error.message);
       throw error;
     }
     console.log("[supabase-admin] Created 'gallery' storage bucket");
-  } else {
-    // Update existing bucket to remove any size / MIME restrictions
-    const { error } = await supabase.storage.updateBucket("gallery", GALLERY_BUCKET_OPTIONS);
+  } else if (bucket.file_size_limit !== FILE_SIZE_LIMIT) {
+    // Fix bucket if it was created with a wrong limit (e.g. 0)
+    const { error } = await supabase.storage.updateBucket("gallery", opts);
     if (error) {
       console.error("[supabase-admin] Failed to update gallery bucket:", error.message);
+    } else {
+      console.log("[supabase-admin] Updated 'gallery' bucket limit to", FILE_SIZE_LIMIT);
     }
   }
 

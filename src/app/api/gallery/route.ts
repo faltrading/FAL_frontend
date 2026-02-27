@@ -68,6 +68,12 @@ export async function POST(req: NextRequest) {
 
     if (uploadError) {
       console.error("[gallery POST] Storage upload error:", uploadError.message);
+      if (uploadError.message.includes("maximum allowed size")) {
+        return NextResponse.json(
+          { error: "Il file supera il limite massimo di 50 MB (piano Free di Supabase)." },
+          { status: 413 },
+        );
+      }
       return NextResponse.json({ error: uploadError.message }, { status: 500 });
     }
 

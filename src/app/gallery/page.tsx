@@ -172,11 +172,16 @@ export default function GalleryPage() {
         const formData = new FormData();
         formData.append("file", file);
 
-        await fetch("/api/gallery", {
+        const res = await fetch("/api/gallery", {
           method: "POST",
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           body: formData,
         });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          alert(body?.error || `Errore durante l'upload (${res.status})`);
+        }
       }
       await fetchFiles();
     } catch {

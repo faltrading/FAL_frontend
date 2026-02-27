@@ -64,7 +64,8 @@ function DashboardTab({
         `/api/v1/broker/connections/${connection.id}/dashboard`
       );
       setData(res);
-    } catch {
+    } catch (err) {
+      console.error("[Journal] fetchDashboard error:", err);
     } finally {
       setLoading(false);
     }
@@ -80,7 +81,8 @@ function DashboardTab({
     try {
       await api.post(`/api/v1/broker/connections/${connection.id}/sync`);
       await fetchDashboard();
-    } catch {
+    } catch (err) {
+      console.error("[Journal] handleSync error:", err);
     } finally {
       setSyncing(false);
     }
@@ -308,7 +310,7 @@ function TradesTab({ connection }: { connection: BrokerConnection | null }) {
         `/api/v1/broker/connections/${connection.id}/trades`
       )
       .then((res) => setTrades(Array.isArray(res) ? res : res.trades ?? []))
-      .catch(() => {})
+      .catch((err) => console.error("[Journal] fetchTrades error:", err))
       .finally(() => setLoading(false));
   }, [connection]);
 
@@ -631,7 +633,8 @@ function ConnectTab({
       setSelectedProvider("");
       setAccountId("");
       onConnectionChange();
-    } catch {
+    } catch (err) {
+      console.error("[Journal] handleSubmit (new connection) error:", err);
     } finally {
       setSubmitting(false);
     }
@@ -642,7 +645,8 @@ function ConnectTab({
     try {
       await api.post(`/api/v1/broker/connections/${connectionId}/sync`);
       onConnectionChange();
-    } catch {
+    } catch (err) {
+      console.error("[Journal] handleSync error:", err);
     } finally {
       setSyncingId(null);
     }
@@ -670,6 +674,7 @@ function ConnectTab({
       });
       onConnectionChange();
     } catch (err: unknown) {
+      console.error("[Journal] CSV import error:", err);
       const msg = err instanceof Error ? err.message : "Errore durante l'import CSV";
       setCsvFeedback({ id: connectionId, ok: false, msg });
     } finally {
@@ -683,7 +688,8 @@ function ConnectTab({
     try {
       await api.post(`/api/v1/broker/connections/${connectionId}/ea-token`);
       onConnectionChange();
-    } catch {
+    } catch (err) {
+      console.error("[Journal] handleGenerateEaToken error:", err);
     } finally {
       setEaGeneratingId(null);
     }
@@ -1012,8 +1018,10 @@ export default function JournalPage() {
       const data = await api.get<{ connections: BrokerConnection[]; total: number }>(
         "/api/v1/broker/connections"
       );
+      console.debug("[Journal] fetchConnections result:", data);
       setConnections(Array.isArray(data) ? data : data.connections ?? []);
-    } catch {
+    } catch (err) {
+      console.error("[Journal] fetchConnections error:", err);
     } finally {
       setLoading(false);
     }

@@ -113,58 +113,58 @@ function DashboardTab({
   const kpis = [
     {
       label: t("journal.totalPnl"),
-      value: formatPnl(data.kpi.total_pnl),
+      value: formatPnl(data.kpi.total_pnl ?? 0),
       color:
-        data.kpi.total_pnl >= 0 ? "text-success-400" : "text-error-400",
+        (data.kpi.total_pnl ?? 0) >= 0 ? "text-success-400" : "text-error-400",
       icon: TrendingUp,
     },
     {
       label: t("journal.winRate"),
-      value: `${data.kpi.win_rate.toFixed(1)}%`,
-      color: data.kpi.win_rate >= 50 ? "text-success-400" : "text-warning-400",
+      value: `${(data.kpi.win_rate ?? 0).toFixed(1)}%`,
+      color: (data.kpi.win_rate ?? 0) >= 50 ? "text-success-400" : "text-warning-400",
       icon: Target,
     },
     {
       label: t("journal.profitFactor"),
-      value: data.kpi.profit_factor.toFixed(2),
+      value: (data.kpi.profit_factor ?? 0).toFixed(2),
       color:
-        data.kpi.profit_factor >= 1 ? "text-success-400" : "text-error-400",
+        (data.kpi.profit_factor ?? 0) >= 1 ? "text-success-400" : "text-error-400",
       icon: BarChart3,
     },
     {
       label: t("journal.totalTrades"),
-      value: data.kpi.total_trades.toString(),
+      value: (data.kpi.total_trades ?? 0).toString(),
       color: "text-brand-400",
       icon: Activity,
     },
     {
       label: t("journal.avgWin"),
-      value: `+${data.kpi.average_win.toFixed(2)}`,
+      value: `+${(data.kpi.average_win ?? 0).toFixed(2)}`,
       color: "text-success-400",
       icon: TrendingUp,
     },
     {
       label: t("journal.avgLoss"),
-      value: data.kpi.average_loss.toFixed(2),
+      value: (data.kpi.average_loss ?? 0).toFixed(2),
       color: "text-error-400",
       icon: TrendingDown,
     },
     {
       label: t("journal.maxDrawdown"),
-      value: `${data.kpi.max_drawdown.toFixed(2)}%`,
+      value: `${(data.kpi.max_drawdown ?? 0).toFixed(2)}%`,
       color: "text-error-400",
       icon: AlertTriangle,
     },
     {
       label: t("journal.openPositions"),
-      value: data.open_positions.length.toString(),
+      value: (data.open_positions?.length ?? 0).toString(),
       color: "text-brand-400",
       icon: Users,
     },
   ];
 
   const maxPnl = Math.max(
-    ...data.daily_pnl.map((d) => Math.abs(d.total_pnl)),
+    ...(data.daily_pnl ?? []).map((d) => Math.abs(d.total_pnl ?? 0)),
     1
   );
 
@@ -204,9 +204,9 @@ function DashboardTab({
           {t("journal.dailyPnl")}
         </h3>
         <div className="flex items-end gap-1 h-40">
-          {data.daily_pnl.slice(-30).map((day, idx) => {
+          {(data.daily_pnl ?? []).slice(-30).map((day, idx) => {
             const heightPercent = Math.max(
-              (Math.abs(day.total_pnl) / maxPnl) * 100,
+              (Math.abs(day.total_pnl ?? 0) / maxPnl) * 100,
               2
             );
             return (
@@ -222,7 +222,7 @@ function DashboardTab({
                 <div
                   className={cn(
                     "w-full min-w-[4px] rounded-t transition-all",
-                    day.total_pnl >= 0 ? "bg-success-500" : "bg-error-500"
+                    (day.total_pnl ?? 0) >= 0 ? "bg-success-500" : "bg-error-500"
                   )}
                   style={{ height: `${heightPercent}%` }}
                 />
@@ -255,7 +255,7 @@ function DashboardTab({
               </tr>
             </thead>
             <tbody>
-              {data.recent_trades.slice(0, 10).map((trade) => (
+              {(data.recent_trades ?? []).slice(0, 10).map((trade) => (
                 <tr
                   key={trade.id}
                   className="border-b border-surface-700/50"

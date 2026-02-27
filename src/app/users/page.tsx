@@ -504,7 +504,7 @@ function PaymentPlansTab() {
               )}
               <div className="mb-3">
                 <span className="text-2xl font-bold text-surface-100">
-                  {plan.currency === "EUR" ? "\u20AC" : "$"}{plan.price.toFixed(2)}
+                  {plan.currency === "EUR" ? "€" : "$"}{(plan.price ?? 0).toFixed(2)}
                 </span>
                 <span className="text-sm text-surface-500 ml-1">/ {plan.interval}</span>
               </div>

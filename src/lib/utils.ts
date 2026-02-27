@@ -39,9 +39,10 @@ export function formatCurrency(amount: number, currency: string = "USD") {
   }).format(amount);
 }
 
-export function formatPnl(value: number) {
-  const sign = value >= 0 ? "+" : "";
-  return `${sign}${value.toFixed(2)}`;
+export function formatPnl(value: number | null | undefined) {
+  const n = value ?? 0;
+  const sign = n >= 0 ? "+" : "";
+  return `${sign}${n.toFixed(2)}`;
 }
 
 export function getInitials(firstName?: string | null, lastName?: string | null, username?: string) {

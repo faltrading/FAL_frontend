@@ -189,12 +189,13 @@ void SyncTrades()
             Print("FAL Journal: WebRequest bloccato (", httpCode, ").",
                   " Vai su Strumenti > Opzioni > Expert Advisor e aggiungi: ", ServerURL);
             errors++;
-            break;
+            break;  // URL non abilitato — inutile riprovare altri trade
         } else {
             string resp = CharArrayToString(result);
             Print("FAL Journal: HTTP ", httpCode, " deal ", (long)deal, " — ", resp);
             errors++;
-            break;
+            if(errors >= 5) { Print("FAL Journal: troppi errori, riprovo al prossimo ciclo"); break; }
+            continue;  // Salta questo trade e prova i successivi
         }
     }
 

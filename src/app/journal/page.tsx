@@ -558,8 +558,8 @@ function DashboardTab({
                     fontSize: 12,
                   }}
                   labelStyle={{ color: "#9ca3af" }}
-                  formatter={(v: number) => [
-                    formatPnl(v),
+                  formatter={(v: number | undefined) => [
+                    formatPnl(v ?? 0),
                     "Cumulative P&L",
                   ]}
                 />
@@ -615,7 +615,7 @@ function DashboardTab({
                     fontSize: 12,
                   }}
                   labelStyle={{ color: "#9ca3af" }}
-                  formatter={(v: number) => [formatPnl(v), "Daily P&L"]}
+                  formatter={(v: number | undefined) => [formatPnl(v ?? 0), "Daily P&L"]}
                 />
                 <ReferenceLine
                   y={0}

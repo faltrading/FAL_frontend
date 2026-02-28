@@ -733,19 +733,21 @@ function ConnectTab({
   const downloadEa = async (conn: BrokerConnection, version: "mq4" | "mq5") => {
     const token = conn.metadata?.ea_token as string | undefined;
     if (!token) return;
-    // Use the API gateway URL — the EA calls /api/v1/broker/ea/push directly on the gateway,
-    // NOT the frontend URL (window.location.origin would be wrong here).
-    const gatewayUrl = (
+    // The EA calls /api/v1/broker/ea/push directly on the BROKER SERVICE backend,
+    // NOT the frontend and NOT the gateway. This avoids extra hops and ensures
+    // the EA always reaches the correct endpoint.
+    const brokerServiceUrl = (
+      process.env.NEXT_PUBLIC_BROKER_SERVICE_URL ||
       process.env.NEXT_PUBLIC_API_GATEWAY_URL ||
-      (window.location.hostname === "localhost" ? "http://localhost:8000" : "")
+      (window.location.hostname === "localhost" ? "http://localhost:8005" : "")
     ).replace(/\/+$/, "");
-    if (!gatewayUrl) {
-      alert("NEXT_PUBLIC_API_GATEWAY_URL non configurato. Contatta l'amministratore.");
+    if (!brokerServiceUrl) {
+      alert("NEXT_PUBLIC_BROKER_SERVICE_URL non configurato. Contatta l'amministratore.");
       return;
     }
     const res = await fetch(`/ea/FAL_Journal.${version}`);
     let content = await res.text();
-    content = content.replace("%%GATEWAY_URL%%", gatewayUrl);
+    content = content.replace("%%GATEWAY_URL%%", brokerServiceUrl);
     content = content.replace("%%EA_TOKEN%%", token);
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
@@ -970,7 +972,7 @@ function ConnectTab({
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-surface-500 w-16 shrink-0">URL EA:</span>
                       <code className="text-xs font-mono text-surface-400 bg-surface-800 px-2 py-1 rounded break-all">
-                        {(process.env.NEXT_PUBLIC_API_GATEWAY_URL || "⚠ URL non configurato").replace(/\/+$/, "")}
+                        {(process.env.NEXT_PUBLIC_BROKER_SERVICE_URL || process.env.NEXT_PUBLIC_API_GATEWAY_URL || "⚠ URL non configurato").replace(/\/+$/, "")}
                         /api/v1/broker/ea/push
                       </code>
                     </div>

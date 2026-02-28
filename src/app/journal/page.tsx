@@ -1197,16 +1197,17 @@ function ConnectTab({
   const downloadEa = async (conn: BrokerConnection, version: "mq4" | "mq5") => {
     const token = conn.metadata?.ea_token as string | undefined;
     if (!token) return;
-    // The EA calls /api/v1/broker/ea/push directly on the BROKER SERVICE backend,
-    // NOT the frontend and NOT the gateway. This avoids extra hops and ensures
-    // the EA always reaches the correct endpoint.
+    // The EA calls /api/v1/broker/ea/push through the API GATEWAY.
+    // The gateway proxies to the broker service and already allows this
+    // path without JWT (PUBLIC_PATHS). Using the gateway means the user
+    // only needs to whitelist ONE URL in MetaTrader.
     const brokerServiceUrl = (
-      process.env.NEXT_PUBLIC_BROKER_SERVICE_URL ||
       process.env.NEXT_PUBLIC_API_GATEWAY_URL ||
+      process.env.NEXT_PUBLIC_BROKER_SERVICE_URL ||
       (window.location.hostname === "localhost" ? "http://localhost:8005" : "")
     ).replace(/\/+$/, "");
     if (!brokerServiceUrl) {
-      alert("NEXT_PUBLIC_BROKER_SERVICE_URL non configurato. Contatta l'amministratore.");
+      alert("URL del server non configurato (NEXT_PUBLIC_API_GATEWAY_URL). Contatta l'amministratore.");
       return;
     }
     const res = await fetch(`/ea/FAL_Journal.${version}`);
@@ -1265,7 +1266,7 @@ function ConnectTab({
               </li>
               <li className="flex gap-2">
                 <span className="text-brand-400 font-bold shrink-0">5.</span>
-                <span>Aggiungi l&rsquo;URL del server alla whitelist: <em>Strumenti → Opzioni → Expert Advisor → Consenti WebRequest per i seguenti URL</em>.</span>
+                <span>Aggiungi l&rsquo;URL del server alla whitelist: <em>Strumenti → Opzioni → Expert Advisor → Consenti WebRequest per i seguenti URL</em>. Aggiungi: <code className="text-brand-300 bg-surface-800 px-1 rounded break-all">{(process.env.NEXT_PUBLIC_API_GATEWAY_URL || process.env.NEXT_PUBLIC_BROKER_SERVICE_URL || "").replace(/\/+$/, "")}</code>. Dopo aver aggiunto l&rsquo;URL, <strong>riavvia MetaTrader completamente</strong>.</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-warning-400 font-bold shrink-0">⚠</span>
@@ -1477,7 +1478,7 @@ function ConnectTab({
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-surface-500 w-16 shrink-0">URL EA:</span>
                       <code className="text-xs font-mono text-surface-400 bg-surface-800 px-2 py-1 rounded break-all">
-                        {(process.env.NEXT_PUBLIC_BROKER_SERVICE_URL || process.env.NEXT_PUBLIC_API_GATEWAY_URL || "⚠ URL non configurato").replace(/\/+$/, "")}
+                        {(process.env.NEXT_PUBLIC_API_GATEWAY_URL || process.env.NEXT_PUBLIC_BROKER_SERVICE_URL || "⚠ URL non configurato").replace(/\/+$/, "")}
                         /api/v1/broker/ea/push
                       </code>
                     </div>
@@ -1519,7 +1520,8 @@ function ConnectTab({
                       1. Scarica il file per la tua piattaforma (.mq4 = MT4, .mq5 = MT5)<br />
                       2. Copialo in <code className="text-surface-400">MQL4/Experts/</code> o <code className="text-surface-400">MQL5/Experts/</code><br />
                       3. Compila con F7 in MetaEditor, trascina su un grafico<br />
-                      4. <span className="text-surface-400">Strumenti &rarr; Opzioni &rarr; Expert Advisor</span> → aggiungi il server alla whitelist WebRequest
+                      4. <span className="text-surface-400">Strumenti &rarr; Opzioni &rarr; Expert Advisor</span> → spunta &ldquo;Consenti WebRequest&rdquo; e aggiungi: <code className="text-brand-300">{(process.env.NEXT_PUBLIC_API_GATEWAY_URL || process.env.NEXT_PUBLIC_BROKER_SERVICE_URL || "").replace(/\/+$/, "")}</code><br />
+                      5. <strong className="text-warning-400">Riavvia MetaTrader completamente</strong> dopo aver aggiunto l&rsquo;URL
                     </p>
                   </div>
                 )}

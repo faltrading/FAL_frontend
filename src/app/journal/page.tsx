@@ -133,31 +133,40 @@ function CircleGauge({
 // ── Dashboard ──
 function DashboardTab({
   connection,
+  onImportClick,
 }: {
   connection: BrokerConnection | null;
+  onImportClick?: () => void;
 }) {
   const { t, locale } = useI18n();
   const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // true on mount → spinner immediately
+  const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
 
   const fetchDashboard = useCallback(async () => {
     if (!connection) return;
     setLoading(true);
+    setError(null);
     try {
       const res = await api.get<DashboardData>(
         `/api/v1/broker/connections/${connection.id}/dashboard`
       );
       setData(res);
     } catch (err) {
+      const msg = err instanceof Error ? err.message : "Errore caricamento dati";
       console.error("[Journal] fetchDashboard error:", err);
+      setError(msg);
     } finally {
       setLoading(false);
     }
   }, [connection]);
 
   useEffect(() => {
+    setData(null);
+    setError(null);
+    setLoading(true);
     fetchDashboard();
     const interval = setInterval(fetchDashboard, 30_000);
     return () => clearInterval(interval);
@@ -199,7 +208,59 @@ function DashboardTab({
     );
   }
 
+  if (error && !data) {
+    return (
+      <div className="card text-center py-16 border border-error-500/30">
+        <XCircle className="h-10 w-10 text-error-400 mx-auto mb-3" />
+        <p className="text-base font-semibold text-surface-200 mb-1">Errore caricamento dashboard</p>
+        <p className="text-sm text-surface-400 mb-4">{error}</p>
+        <button
+          onClick={fetchDashboard}
+          className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium rounded-lg transition-colors"
+        >
+          Riprova
+        </button>
+      </div>
+    );
+  }
+
   if (!data) return null;
+
+  // ── Zero closed trades: show helpful empty state ──
+  if ((data.kpi.total_trades ?? 0) === 0) {
+    return (
+      <div className="space-y-4">
+        {/* Header still visible */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 text-sm text-surface-400">
+            {data.last_sync_at && (
+              <span>Last import: <span className="text-surface-200">{formatDateTime(data.last_sync_at, locale)}</span></span>
+            )}
+            <button onClick={handleSync} disabled={syncing} className="flex items-center gap-1 text-brand-400 hover:text-brand-300 transition-colors disabled:opacity-50">
+              <RefreshCw className={cn("h-3.5 w-3.5", syncing && "animate-spin")} />
+              Resync
+            </button>
+          </div>
+        </div>
+        <div className="card text-center py-16 border border-surface-700/50">
+          <BarChart3 className="h-12 w-12 text-surface-600 mx-auto mb-4" />
+          <p className="text-base font-semibold text-surface-200 mb-2">Nessun trade chiuso trovato</p>
+          <p className="text-sm text-surface-400 max-w-md mx-auto mb-6">
+            I dati statistici vengono calcolati solo dai trade chiusi. Importa i tuoi trade tramite CSV o configura l&apos;EA per inviare i trade automaticamente.
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => onImportClick?.()}
+              className="flex items-center gap-2 px-4 py-2 bg-surface-700 hover:bg-surface-600 text-surface-200 text-sm rounded-lg transition-colors"
+            >
+              <Upload className="h-4 w-4" />
+              Importa CSV
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ── Derived data ──
   const kpi = data.kpi;
@@ -1650,7 +1711,7 @@ export default function JournalPage() {
       </div>
 
       {activeTab === "dashboard" && (
-        <DashboardTab connection={selectedConnection} />
+        <DashboardTab connection={selectedConnection} onImportClick={() => setActiveTab("connect")} />
       )}
       {activeTab === "trades" && (
         <TradesTab connection={selectedConnection} dataSource={currentSource} />

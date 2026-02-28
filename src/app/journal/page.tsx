@@ -344,132 +344,132 @@ function DashboardTab({
 
       {/* ── 5 KPI cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+
         {/* Net P&L */}
         <div className={cn(
-          "card relative overflow-hidden border-t-2",
-          (kpi.total_pnl ?? 0) >= 0 ? "border-t-teal-500/70" : "border-t-error-500/70"
+          "card relative overflow-hidden flex flex-col min-h-[148px]",
+          (kpi.total_pnl ?? 0) >= 0
+            ? "border border-teal-500/25"
+            : "border border-error-500/25"
         )}>
-          <div className="flex items-center gap-1.5 mb-2">
-            <span className="text-[11px] text-surface-400 uppercase tracking-wide font-medium">
-              Net P&amp;L
-            </span>
+          {/* subtle glow */}
+          <div className={cn(
+            "absolute inset-0 opacity-[0.06] rounded-xl pointer-events-none",
+            (kpi.total_pnl ?? 0) >= 0
+              ? "bg-gradient-to-br from-teal-400"
+              : "bg-gradient-to-br from-red-500"
+          )} />
+          <div className="relative flex items-center gap-1.5 mb-3">
+            <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Net P&amp;L</span>
             <HelpCircle className="h-3 w-3 text-surface-600" />
-            <span className="ml-auto text-[10px] bg-surface-700 text-surface-400 px-1.5 py-0.5 rounded-full">
+            <span className="ml-auto text-[10px] bg-surface-700 text-surface-400 px-1.5 py-0.5 rounded-full font-mono">
               {totalTrades}
             </span>
           </div>
-          <p
-            className={cn(
-              "text-2xl font-bold",
-              (kpi.total_pnl ?? 0) >= 0 ? "text-teal-400" : "text-error-400"
-            )}
-          >
+          <p className={cn(
+            "relative text-3xl font-bold tracking-tight",
+            (kpi.total_pnl ?? 0) >= 0 ? "text-teal-400" : "text-error-400"
+          )}>
             {formatPnl(kpi.total_pnl ?? 0)}
           </p>
-          <Activity className="absolute bottom-3 right-3 h-7 w-7 text-surface-700/60" />
+          <p className="relative mt-1 text-[11px] text-surface-500">
+            {totalTrades} trade{totalTrades !== 1 ? "s" : ""}
+          </p>
+          <Activity className="absolute bottom-3 right-3 h-8 w-8 text-surface-700/40" />
         </div>
 
         {/* Trade win % */}
-        <div className="card flex flex-col">
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className="text-[11px] text-surface-400 uppercase tracking-wide font-medium">
-              Trade win %
-            </span>
+        <div className="card flex flex-col min-h-[148px]">
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Trade win %</span>
             <HelpCircle className="h-3 w-3 text-surface-600" />
           </div>
-          <p className="text-2xl font-bold text-surface-100 mb-1">
+          <p className="text-3xl font-bold tracking-tight text-surface-100">
             {(kpi.win_rate ?? 0).toFixed(2)}%
           </p>
-          <div className="flex flex-col items-center mt-auto">
-            <SemiArcGauge wins={winTrades} neutral={0} losses={lossTrades} />
-            <div className="flex items-center gap-4 text-[11px] -mt-1">
-              <span className="text-success-400">{winTrades}</span>
-              {false && <span className="text-surface-500">0</span>}
-              <span className="text-error-400">{lossTrades}</span>
+          <div className="flex items-end justify-between mt-auto pt-2">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-surface-500 uppercase tracking-wide">W / L</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-success-500/15 text-success-400">{winTrades}</span>
+                <span className="text-surface-600 text-xs">/</span>
+                <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-error-500/15 text-error-400">{lossTrades}</span>
+              </div>
             </div>
+            <SemiArcGauge wins={winTrades} neutral={0} losses={lossTrades} />
           </div>
         </div>
 
-        {/* Profit factor */}}
-        <div className="card flex flex-col">
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className="text-[11px] text-surface-400 uppercase tracking-wide font-medium">
-              Profit factor
-            </span>
+        {/* Profit factor */}
+        <div className="card flex flex-col min-h-[148px]">
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Profit factor</span>
             <HelpCircle className="h-3 w-3 text-surface-600" />
           </div>
-          <p
-            className={cn(
-              "text-2xl font-bold mb-1",
-              (kpi.profit_factor ?? 0) >= 1
-                ? "text-surface-100"
-                : "text-error-400"
-            )}
-          >
+          <p className={cn(
+            "text-3xl font-bold tracking-tight",
+            (kpi.profit_factor ?? 0) >= 1 ? "text-surface-100" : "text-error-400"
+          )}>
             {(kpi.profit_factor ?? 0).toFixed(2)}
           </p>
-          <div className="flex justify-center mt-auto">
-            <CircleGauge
-              value={kpi.profit_factor ?? 0}
-              max={3}
-              color={pfColor}
-            />
+          <div className="flex items-end justify-between mt-auto pt-2">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-surface-500 uppercase tracking-wide">Target</span>
+              <span className="text-xs text-surface-400">≥ 1.5 good</span>
+            </div>
+            <CircleGauge value={kpi.profit_factor ?? 0} max={3} color={pfColor} />
           </div>
         </div>
 
         {/* Day win % */}
-        <div className="card flex flex-col">
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className="text-[11px] text-surface-400 uppercase tracking-wide font-medium">
-              Day win %
-            </span>
+        <div className="card flex flex-col min-h-[148px]">
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Day win %</span>
             <HelpCircle className="h-3 w-3 text-surface-600" />
           </div>
-          <p className="text-2xl font-bold text-surface-100 mb-1">
+          <p className="text-3xl font-bold tracking-tight text-surface-100">
             {dayWinRate.toFixed(2)}%
           </p>
-          <div className="flex flex-col items-center mt-auto">
-            <SemiArcGauge
-              wins={winDays}
-              neutral={neutDays}
-              losses={lossDays}
-            />
-            <div className="flex items-center gap-4 text-[11px] -mt-1">
-              <span className="text-success-400">{winDays}</span>
-              {neutDays > 0 && <span className="text-warning-400">{neutDays}</span>}
-              <span className="text-error-400">{lossDays}</span>
+          <div className="flex items-end justify-between mt-auto pt-2">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-surface-500 uppercase tracking-wide">Days</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-success-500/15 text-success-400">{winDays}</span>
+                {neutDays > 0 && (
+                  <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-warning-500/15 text-warning-400">{neutDays}</span>
+                )}
+                <span className="text-surface-600 text-xs">/</span>
+                <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-error-500/15 text-error-400">{lossDays}</span>
+              </div>
+            </div>
+            <SemiArcGauge wins={winDays} neutral={neutDays} losses={lossDays} />
+          </div>
+        </div>
+
+        {/* Avg win/loss */}
+        <div className="card flex flex-col min-h-[148px]">
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Avg win/loss</span>
+            <HelpCircle className="h-3 w-3 text-surface-600" />
+          </div>
+          <p className="text-3xl font-bold tracking-tight text-surface-100">
+            {avgRatio.toFixed(2)}
+          </p>
+          <div className="mt-auto pt-3 space-y-2">
+            {/* stacked bars */}
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <div className="h-2 rounded-full bg-success-500 transition-all" style={{ width: `${avgWinPct}%`, minWidth: 4 }} />
+                <span className="text-[11px] text-success-400 font-medium whitespace-nowrap">{fmtUsd(avgWin)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-2 rounded-full bg-error-500 transition-all" style={{ width: `${100 - avgWinPct}%`, minWidth: 4 }} />
+                <span className="text-[11px] text-error-400 font-medium whitespace-nowrap">-{fmtUsd(avgLoss)}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Avg win/loss trade */}
-        <div className="card flex flex-col">
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className="text-[11px] text-surface-400 uppercase tracking-wide font-medium">
-              Avg win/loss
-            </span>
-            <HelpCircle className="h-3 w-3 text-surface-600" />
-          </div>
-          <p className="text-2xl font-bold text-surface-100 mb-2">
-            {avgRatio.toFixed(2)}
-          </p>
-          <div className="mt-auto space-y-1.5">
-            <div className="flex overflow-hidden rounded h-2 bg-surface-700">
-              <div
-                className="bg-success-500 transition-all"
-                style={{ width: `${avgWinPct}%` }}
-              />
-              <div
-                className="bg-error-500 transition-all"
-                style={{ width: `${100 - avgWinPct}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-[11px]">
-              <span className="text-success-400">{fmtUsd(avgWin)}</span>
-              <span className="text-error-400">-{fmtUsd(avgLoss)}</span>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* ── Bottom 3 panels ── */}

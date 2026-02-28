@@ -260,14 +260,39 @@ function DashboardTab({
     const p = d.split("-");
     return p.length === 3 ? `${p[1]}/${p[2]}` : d;
   };
-  const chartCumul = daily.map((d) => ({
-    date: fmtAxisDate(d.date),
-    pnl: d.cumulative_pnl ?? 0,
-  }));
-  const chartDaily = daily.map((d) => ({
-    date: fmtAxisDate(d.date),
-    pnl: d.total_pnl ?? 0,
-  }));
+
+  // Fixed 30-day window — pad missing days with zeros
+  const CHART_DAYS = 30;
+  const chartWindow = Array.from({ length: CHART_DAYS }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (CHART_DAYS - 1 - i));
+    const iso = d.toISOString().split("T")[0];
+    return fmtAxisDate(iso);
+  });
+  const dailyByDate = new Map(daily.map((d) => [fmtAxisDate(d.date), d]));
+
+  let lastCumul = 0;
+  const chartCumul = chartWindow.map((date) => {
+    const d = dailyByDate.get(date);
+    if (d) lastCumul = d.cumulative_pnl ?? lastCumul;
+    return { date, pnl: lastCumul };
+  });
+  const chartDaily = chartWindow.map((date) => {
+    const d = dailyByDate.get(date);
+    return { date, pnl: d ? (d.total_pnl ?? 0) : 0 };
+  });
+
+  // Smart axis formatter: avoids "$0k" for small values
+  const fmtAxis = (v: number) => {
+    const abs = Math.abs(v);
+    if (abs >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
+    if (abs >= 1_000) return `$${(v / 1_000).toFixed(1)}k`;
+    return `$${v.toFixed(0)}`;
+  };
+
+  // X-axis: show only every 5th tick to avoid crowding over 30 days
+  const xTicks = chartWindow.filter((_, i) => i % 5 === 0 || i === CHART_DAYS - 1);
+
   const fmtUsd = (v: number) =>
     new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -320,7 +345,10 @@ function DashboardTab({
       {/* ── 5 KPI cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {/* Net P&L */}
-        <div className="card relative overflow-hidden">
+        <div className={cn(
+          "card relative overflow-hidden border-t-2",
+          (kpi.total_pnl ?? 0) >= 0 ? "border-t-teal-500/70" : "border-t-error-500/70"
+        )}>
           <div className="flex items-center gap-1.5 mb-2">
             <span className="text-[11px] text-surface-400 uppercase tracking-wide font-medium">
               Net P&amp;L
@@ -356,13 +384,13 @@ function DashboardTab({
             <SemiArcGauge wins={winTrades} neutral={0} losses={lossTrades} />
             <div className="flex items-center gap-4 text-[11px] -mt-1">
               <span className="text-success-400">{winTrades}</span>
-              <span className="text-surface-500">0</span>
+              {false && <span className="text-surface-500">0</span>}
               <span className="text-error-400">{lossTrades}</span>
             </div>
           </div>
         </div>
 
-        {/* Profit factor */}
+        {/* Profit factor */}}
         <div className="card flex flex-col">
           <div className="flex items-center gap-1.5 mb-1">
             <span className="text-[11px] text-surface-400 uppercase tracking-wide font-medium">
@@ -408,7 +436,7 @@ function DashboardTab({
             />
             <div className="flex items-center gap-4 text-[11px] -mt-1">
               <span className="text-success-400">{winDays}</span>
-              <span className="text-warning-400">{neutDays}</span>
+              {neutDays > 0 && <span className="text-warning-400">{neutDays}</span>}
               <span className="text-error-400">{lossDays}</span>
             </div>
           </div>
@@ -502,36 +530,27 @@ function DashboardTab({
 
         {/* Daily net cumulative P&L */}
         <div className="card flex flex-col">
-          <div className="flex items-center gap-1.5 mb-2">
-            <h3 className="text-sm font-semibold text-surface-200">
-              Daily net cumulative P&amp;L
-            </h3>
-            <HelpCircle className="h-3.5 w-3.5 text-surface-600" />
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-sm font-semibold text-surface-200">
+                Daily net cumulative P&amp;L
+              </h3>
+              <HelpCircle className="h-3.5 w-3.5 text-surface-600" />
+            </div>
+            <span className="text-[10px] text-surface-500 bg-surface-700/60 px-2 py-0.5 rounded-full">
+              Last 30 days
+            </span>
           </div>
           <div className="flex-1 min-h-[260px]">
             <ResponsiveContainer width="100%" height={280}>
               <AreaChart
                 data={chartCumul}
-                margin={{ top: 4, right: 4, bottom: 0, left: 0 }}
+                margin={{ top: 8, right: 8, bottom: 0, left: 4 }}
               >
                 <defs>
-                  <linearGradient
-                    id="cumulGrad"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop
-                      offset="5%"
-                      stopColor="#22c55e"
-                      stopOpacity={0.4}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor="#22c55e"
-                      stopOpacity={0.03}
-                    />
+                  <linearGradient id="cumulGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
                 <XAxis
@@ -539,30 +558,30 @@ function DashboardTab({
                   tick={{ fill: "#6b7280", fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
-                  interval="preserveStartEnd"
+                  ticks={xTicks}
                 />
                 <YAxis
                   tick={{ fill: "#6b7280", fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
-                  tickFormatter={(v: number) =>
-                    `$${(v / 1000).toFixed(0)}k`
-                  }
-                  width={44}
+                  tickFormatter={fmtAxis}
+                  width={52}
                 />
                 <Tooltip
                   contentStyle={{
-                    background: "#1f2937",
+                    background: "#111827",
                     border: "1px solid #374151",
-                    borderRadius: 6,
+                    borderRadius: 8,
                     fontSize: 12,
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
                   }}
-                  labelStyle={{ color: "#9ca3af" }}
+                  labelStyle={{ color: "#9ca3af", marginBottom: 2 }}
                   formatter={(v: number | undefined) => [
                     formatPnl(v ?? 0),
                     "Cumulative P&L",
                   ]}
                 />
+                <ReferenceLine y={0} stroke="#374151" strokeDasharray="3 3" />
                 <Area
                   type="monotone"
                   dataKey="pnl"
@@ -570,7 +589,7 @@ function DashboardTab({
                   strokeWidth={2}
                   fill="url(#cumulGrad)"
                   dot={false}
-                  activeDot={{ r: 4, fill: "#22c55e" }}
+                  activeDot={{ r: 4, fill: "#22c55e", stroke: "#111827", strokeWidth: 2 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -579,54 +598,61 @@ function DashboardTab({
 
         {/* Net daily P&L */}
         <div className="card flex flex-col">
-          <div className="flex items-center gap-1.5 mb-2">
-            <h3 className="text-sm font-semibold text-surface-200">
-              Net daily P&amp;L
-            </h3>
-            <HelpCircle className="h-3.5 w-3.5 text-surface-600" />
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-sm font-semibold text-surface-200">
+                Net daily P&amp;L
+              </h3>
+              <HelpCircle className="h-3.5 w-3.5 text-surface-600" />
+            </div>
+            <span className="text-[10px] text-surface-500 bg-surface-700/60 px-2 py-0.5 rounded-full">
+              Last 30 days
+            </span>
           </div>
           <div className="flex-1 min-h-[260px]">
             <ResponsiveContainer width="100%" height={280}>
               <BarChart
                 data={chartDaily}
-                margin={{ top: 4, right: 4, bottom: 0, left: 0 }}
+                margin={{ top: 8, right: 8, bottom: 0, left: 4 }}
+                barCategoryGap="30%"
               >
                 <XAxis
                   dataKey="date"
                   tick={{ fill: "#6b7280", fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
-                  interval="preserveStartEnd"
+                  ticks={xTicks}
                 />
                 <YAxis
                   tick={{ fill: "#6b7280", fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
-                  tickFormatter={(v: number) =>
-                    `$${(v / 1000).toFixed(0)}k`
-                  }
-                  width={44}
+                  tickFormatter={fmtAxis}
+                  width={52}
                 />
                 <Tooltip
                   contentStyle={{
-                    background: "#1f2937",
+                    background: "#111827",
                     border: "1px solid #374151",
-                    borderRadius: 6,
+                    borderRadius: 8,
                     fontSize: 12,
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
                   }}
-                  labelStyle={{ color: "#9ca3af" }}
+                  labelStyle={{ color: "#9ca3af", marginBottom: 2 }}
                   formatter={(v: number | undefined) => [formatPnl(v ?? 0), "Daily P&L"]}
+                  cursor={{ fill: "rgba(255,255,255,0.04)" }}
                 />
                 <ReferenceLine
                   y={0}
                   stroke="#4b5563"
                   strokeDasharray="4 3"
                 />
-                <Bar dataKey="pnl" radius={[2, 2, 0, 0]}>
+                <Bar dataKey="pnl" radius={[3, 3, 0, 0]} maxBarSize={18}>
                   {chartDaily.map((entry, idx) => (
                     <Cell
                       key={idx}
                       fill={(entry.pnl ?? 0) >= 0 ? "#22c55e" : "#ef4444"}
+                      fillOpacity={(entry.pnl ?? 0) === 0 ? 0.15 : 0.85}
                     />
                   ))}
                 </Bar>

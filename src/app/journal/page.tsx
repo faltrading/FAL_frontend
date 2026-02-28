@@ -37,7 +37,6 @@ import {
   HelpCircle,
   X,
   Trash2,
-  Filter,
 } from "lucide-react";
 
 const PROVIDERS = [
@@ -313,7 +312,7 @@ function DashboardTab({
   );
 }
 
-function TradesTab({ connection, dataSource = "all" }: { connection: BrokerConnection | null; dataSource?: "all" | "csv" | "ea" }) {
+function TradesTab({ connection, dataSource = "all" }: { connection: BrokerConnection | null; dataSource?: "all" | "csv" | "mt4" | "mt5" }) {
   const { t, locale } = useI18n();
   const [trades, setTrades] = useState<BrokerTrade[]>([]);
   const [loading, setLoading] = useState(false);
@@ -344,7 +343,10 @@ function TradesTab({ connection, dataSource = "all" }: { connection: BrokerConne
     if (dataSource !== "all") {
       result = result.filter((t) => {
         const src = (t.metadata?.source as string | undefined) ?? "unknown";
-        return src === dataSource;
+        // "ea" is the old fallback for pre-platform-field EA pushes
+        if (dataSource === "mt4") return src === "mt4";
+        if (dataSource === "mt5") return src === "mt5";
+        return src === dataSource; // csv
       });
     }
     return result;
@@ -1165,7 +1167,7 @@ export default function JournalPage() {
   const [connections, setConnections] = useState<BrokerConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
-  const [dataSourcePref, setDataSourcePref] = useState<Record<string, "all" | "csv" | "ea">>({});
+  const [dataSourcePref, setDataSourcePref] = useState<Record<string, "all" | "csv" | "mt4" | "mt5">>({});
 
   const fetchConnections = useCallback(async () => {
     try {
@@ -1197,10 +1199,10 @@ export default function JournalPage() {
     [connections, selectedConnectionId]
   );
 
-  const currentSource: "all" | "csv" | "ea" =
+  const currentSource: "all" | "csv" | "mt4" | "mt5" =
     selectedConnection ? (dataSourcePref[selectedConnection.id] ?? "all") : "all";
 
-  const setSource = (source: "all" | "csv" | "ea") => {
+  const setSource = (source: "all" | "csv" | "mt4" | "mt5") => {
     if (!selectedConnection) return;
     setDataSourcePref((prev) => ({ ...prev, [selectedConnection.id]: source }));
   };
@@ -1237,64 +1239,40 @@ export default function JournalPage() {
         {t("journal.subtitle")}
       </p>
 
-      {/* Connection selector */}
+      {/* Connection + source dropdowns */}
       {connections.length > 0 && (
-        <div className="mb-5 space-y-2">
-          {/* Connection pills */}
-          {connections.length > 1 && (
-            <div className="flex flex-wrap gap-2">
+        <div className="mb-5 flex flex-wrap items-center gap-3">
+          {/* Connection select */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-surface-400 whitespace-nowrap">Connessione:</label>
+            <select
+              value={selectedConnectionId ?? ""}
+              onChange={(e) => setSelectedConnectionId(e.target.value)}
+              className="bg-surface-800 border border-surface-600 text-surface-100 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
+            >
               {connections.map((conn) => (
-                <button
-                  key={conn.id}
-                  onClick={() => setSelectedConnectionId(conn.id)}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
-                    selectedConnection?.id === conn.id
-                      ? "bg-brand-500 text-white"
-                      : "bg-surface-800 text-surface-300 hover:bg-surface-700"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "w-2 h-2 rounded-full shrink-0",
-                      conn.connection_status === "active"
-                        ? "bg-success-400"
-                        : conn.connection_status === "error"
-                          ? "bg-error-400"
-                          : "bg-surface-500"
-                    )}
-                  />
+                <option key={conn.id} value={conn.id}>
                   {conn.provider.toUpperCase()} — {conn.account_identifier}
-                </button>
+                  {conn.connection_status === "active" ? " ●" : conn.connection_status === "error" ? " ⚠" : " ○"}
+                </option>
               ))}
-            </div>
-          )}
-          {/* Data source filter */}
+            </select>
+          </div>
+
+          {/* Source select */}
           {selectedConnection && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-surface-500 flex items-center gap-1">
-                <Filter className="h-3 w-3" />
-                Origine:
-              </span>
-              {(["all", "csv", "ea"] as const).map((src) => (
-                <button
-                  key={src}
-                  onClick={() => setSource(src)}
-                  className={cn(
-                    "px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
-                    currentSource === src
-                      ? "bg-brand-500/20 text-brand-300 ring-1 ring-brand-500/40"
-                      : "bg-surface-800 text-surface-400 hover:bg-surface-700"
-                  )}
-                >
-                  {src === "all" ? "Tutti" : src === "csv" ? "CSV" : "EA (MT4/MT5)"}
-                </button>
-              ))}
-              {currentSource !== "all" && (
-                <span className="text-xs text-surface-500 ml-1">
-                  (filtro applicato ai Trade)
-                </span>
-              )}
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-surface-400 whitespace-nowrap">Origine dati:</label>
+              <select
+                value={currentSource}
+                onChange={(e) => setSource(e.target.value as "all" | "csv" | "mt4" | "mt5")}
+                className="bg-surface-800 border border-surface-600 text-surface-100 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
+              >
+                <option value="all">Tutti</option>
+                <option value="csv">CSV</option>
+                <option value="mt4">MT4</option>
+                <option value="mt5">MT5</option>
+              </select>
             </div>
           )}
         </div>

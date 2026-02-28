@@ -126,7 +126,8 @@ void SyncTrades()
             "\"commission\":%.2f,"
             "\"swap\":%.2f,"
             "\"magic\":%d,"
-            "\"comment\":\"%s\""
+            "\"comment\":\"%s\","
+            "\"platform\":\"mt4\""
             "}",
             EAToken,
             OrderTicket(),

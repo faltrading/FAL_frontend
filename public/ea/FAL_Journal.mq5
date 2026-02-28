@@ -156,7 +156,8 @@ void SyncTrades()
             "\"commission\":%.2f,"
             "\"swap\":%.2f,"
             "\"magic\":%d,"
-            "\"comment\":\"%s\""
+            "\"comment\":\"%s\","
+            "\"platform\":\"mt5\""
             "}",
             EAToken,
             (long)deal,

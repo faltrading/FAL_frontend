@@ -36,6 +36,8 @@ import {
   XCircle,
   HelpCircle,
   X,
+  Trash2,
+  Filter,
 } from "lucide-react";
 
 const PROVIDERS = [
@@ -311,7 +313,7 @@ function DashboardTab({
   );
 }
 
-function TradesTab({ connection }: { connection: BrokerConnection | null }) {
+function TradesTab({ connection, dataSource = "all" }: { connection: BrokerConnection | null; dataSource?: "all" | "csv" | "ea" }) {
   const { t, locale } = useI18n();
   const [trades, setTrades] = useState<BrokerTrade[]>([]);
   const [loading, setLoading] = useState(false);
@@ -337,9 +339,16 @@ function TradesTab({ connection }: { connection: BrokerConnection | null }) {
   }, [fetchTrades]);
 
   const filteredTrades = useMemo(() => {
-    if (filter === "all") return trades;
-    return trades.filter((t) => t.status === filter);
-  }, [trades, filter]);
+    let result = trades;
+    if (filter !== "all") result = result.filter((t) => t.status === filter);
+    if (dataSource !== "all") {
+      result = result.filter((t) => {
+        const src = (t.metadata?.source as string | undefined) ?? "unknown";
+        return src === dataSource;
+      });
+    }
+    return result;
+  }, [trades, filter, dataSource]);
 
   if (!connection) {
     return (
@@ -658,6 +667,25 @@ function ConnectTab({
   const [eaGeneratingId, setEaGeneratingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showEaInfo, setShowEaInfo] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteFeedback, setDeleteFeedback] = useState<{ id: string; ok: boolean; msg: string } | null>(null);
+
+  const handleDelete = async (connectionId: string, label: string) => {
+    if (!confirm(`Eliminare la connessione "${label}"? Tutti i trade associati verranno rimossi.`)) return;
+    setDeletingId(connectionId);
+    setDeleteFeedback(null);
+    try {
+      await api.delete(`/api/v1/broker/connections/${connectionId}`);
+      setDeleteFeedback({ id: connectionId, ok: true, msg: "Connessione eliminata" });
+      onConnectionChange();
+    } catch (err) {
+      console.error("[Journal] handleDelete error:", err);
+      const msg = err instanceof Error ? err.message : "Errore durante l'eliminazione";
+      setDeleteFeedback({ id: connectionId, ok: false, msg });
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!selectedProvider || !accountId) return;
@@ -909,6 +937,20 @@ function ConnectTab({
                         EA Token
                       </button>
                     )}
+                    {/* Delete connection */}
+                    <button
+                      onClick={() => handleDelete(conn.id, `${conn.provider.toUpperCase()} — ${conn.account_identifier}`)}
+                      disabled={deletingId === conn.id}
+                      className="btn-secondary text-xs py-1.5 text-error-400 hover:bg-error-500/10 border-error-500/30"
+                      title="Elimina connessione"
+                    >
+                      {deletingId === conn.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                      Elimina
+                    </button>
                   </div>
                 </div>
 
@@ -928,6 +970,25 @@ function ConnectTab({
                       <XCircle className="h-3.5 w-3.5 shrink-0" />
                     )}
                     {syncFeedback.msg}
+                  </div>
+                )}
+
+                {/* Delete feedback */}
+                {deleteFeedback?.id === conn.id && (
+                  <div
+                    className={cn(
+                      "flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg",
+                      deleteFeedback.ok
+                        ? "bg-success-500/10 text-success-400"
+                        : "bg-error-500/10 text-error-400"
+                    )}
+                  >
+                    {deleteFeedback.ok ? (
+                      <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                    ) : (
+                      <XCircle className="h-3.5 w-3.5 shrink-0" />
+                    )}
+                    {deleteFeedback.msg}
                   </div>
                 )}
 
@@ -1103,6 +1164,8 @@ export default function JournalPage() {
   >("dashboard");
   const [connections, setConnections] = useState<BrokerConnection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
+  const [dataSourcePref, setDataSourcePref] = useState<Record<string, "all" | "csv" | "ea">>({});
 
   const fetchConnections = useCallback(async () => {
     try {
@@ -1110,7 +1173,14 @@ export default function JournalPage() {
         "/api/v1/broker/connections"
       );
       console.debug("[Journal] fetchConnections result:", data);
-      setConnections(Array.isArray(data) ? data : data.connections ?? []);
+      const list = Array.isArray(data) ? data : data.connections ?? [];
+      setConnections(list);
+      // Auto-select first active if nothing selected yet
+      setSelectedConnectionId((prev) => {
+        if (prev && list.find((c) => c.id === prev)) return prev;
+        const active = list.find((c) => c.connection_status === "active") || list[0];
+        return active ? active.id : null;
+      });
     } catch (err) {
       console.error("[Journal] fetchConnections error:", err);
     } finally {
@@ -1122,10 +1192,18 @@ export default function JournalPage() {
     fetchConnections();
   }, [fetchConnections]);
 
-  const activeConnection =
-    connections.find((c) => c.connection_status === "active") ||
-    connections[0] ||
-    null;
+  const selectedConnection = useMemo(
+    () => connections.find((c) => c.id === selectedConnectionId) || connections[0] || null,
+    [connections, selectedConnectionId]
+  );
+
+  const currentSource: "all" | "csv" | "ea" =
+    selectedConnection ? (dataSourcePref[selectedConnection.id] ?? "all") : "all";
+
+  const setSource = (source: "all" | "csv" | "ea") => {
+    if (!selectedConnection) return;
+    setDataSourcePref((prev) => ({ ...prev, [selectedConnection.id]: source }));
+  };
 
   const tabs = [
     {
@@ -1155,9 +1233,72 @@ export default function JournalPage() {
       <h1 className="text-2xl font-bold text-surface-100 mb-1">
         {t("journal.title")}
       </h1>
-      <p className="text-sm text-surface-400 mb-6">
+      <p className="text-sm text-surface-400 mb-4">
         {t("journal.subtitle")}
       </p>
+
+      {/* Connection selector */}
+      {connections.length > 0 && (
+        <div className="mb-5 space-y-2">
+          {/* Connection pills */}
+          {connections.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              {connections.map((conn) => (
+                <button
+                  key={conn.id}
+                  onClick={() => setSelectedConnectionId(conn.id)}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                    selectedConnection?.id === conn.id
+                      ? "bg-brand-500 text-white"
+                      : "bg-surface-800 text-surface-300 hover:bg-surface-700"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "w-2 h-2 rounded-full shrink-0",
+                      conn.connection_status === "active"
+                        ? "bg-success-400"
+                        : conn.connection_status === "error"
+                          ? "bg-error-400"
+                          : "bg-surface-500"
+                    )}
+                  />
+                  {conn.provider.toUpperCase()} — {conn.account_identifier}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Data source filter */}
+          {selectedConnection && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-surface-500 flex items-center gap-1">
+                <Filter className="h-3 w-3" />
+                Origine:
+              </span>
+              {(["all", "csv", "ea"] as const).map((src) => (
+                <button
+                  key={src}
+                  onClick={() => setSource(src)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                    currentSource === src
+                      ? "bg-brand-500/20 text-brand-300 ring-1 ring-brand-500/40"
+                      : "bg-surface-800 text-surface-400 hover:bg-surface-700"
+                  )}
+                >
+                  {src === "all" ? "Tutti" : src === "csv" ? "CSV" : "EA (MT4/MT5)"}
+                </button>
+              ))}
+              {currentSource !== "all" && (
+                <span className="text-xs text-surface-500 ml-1">
+                  (filtro applicato ai Trade)
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-1 mb-6 border-b border-surface-700 overflow-x-auto">
         {tabs.map((tab) => (
@@ -1178,13 +1319,13 @@ export default function JournalPage() {
       </div>
 
       {activeTab === "dashboard" && (
-        <DashboardTab connection={activeConnection} />
+        <DashboardTab connection={selectedConnection} />
       )}
       {activeTab === "trades" && (
-        <TradesTab connection={activeConnection} />
+        <TradesTab connection={selectedConnection} dataSource={currentSource} />
       )}
       {activeTab === "calendar" && (
-        <CalendarTab connection={activeConnection} />
+        <CalendarTab connection={selectedConnection} />
       )}
       {activeTab === "connect" && (
         <ConnectTab

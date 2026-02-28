@@ -190,6 +190,7 @@ export interface BrokerTrade {
   close_time: string | null;
   pnl: number | null;
   status: "open" | "closed";
+  metadata?: Record<string, unknown>;
 }
 
 export interface DailyStat {

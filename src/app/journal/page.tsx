@@ -74,6 +74,9 @@ function DashboardTab({
 
   useEffect(() => {
     fetchDashboard();
+    // Auto-refresh every 30s to pick up EA-pushed trades
+    const interval = setInterval(fetchDashboard, 30_000);
+    return () => clearInterval(interval);
   }, [fetchDashboard]);
 
   const handleSync = async () => {
@@ -328,6 +331,9 @@ function TradesTab({ connection }: { connection: BrokerConnection | null }) {
 
   useEffect(() => {
     fetchTrades();
+    // Auto-refresh every 30s to pick up EA-pushed trades
+    const interval = setInterval(fetchTrades, 30_000);
+    return () => clearInterval(interval);
   }, [fetchTrades]);
 
   const filteredTrades = useMemo(() => {
@@ -475,7 +481,7 @@ function CalendarTab({
   const [loading, setLoading] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
 
-  useEffect(() => {
+  const fetchStats = useCallback(() => {
     if (!connection) return;
     setLoading(true);
     api
@@ -486,6 +492,13 @@ function CalendarTab({
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [connection]);
+
+  useEffect(() => {
+    fetchStats();
+    // Auto-refresh every 30s to pick up EA-pushed trades
+    const interval = setInterval(fetchStats, 30_000);
+    return () => clearInterval(interval);
+  }, [fetchStats]);
 
   const pnlMap = useMemo(() => {
     const map: Record<string, number> = {};

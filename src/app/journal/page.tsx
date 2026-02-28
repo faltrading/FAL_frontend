@@ -1246,7 +1246,7 @@ function ConnectTab({
               </li>
               <li className="flex gap-2">
                 <span className="text-brand-400 font-bold shrink-0">2.</span>
-                <span>L&rsquo;EA invia i trade chiusi in automatico ogni 60 secondi finché MetaTrader è aperto. Non devi fare nulla.</span>
+                <span>L&rsquo;EA sincronizza <strong>immediatamente tutto lo storico</strong> all&rsquo;avvio e poi controlla ogni 60 secondi finché MetaTrader è aperto.</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-brand-400 font-bold shrink-0">3.</span>
@@ -1259,6 +1259,10 @@ function ConnectTab({
               <li className="flex gap-2">
                 <span className="text-brand-400 font-bold shrink-0">5.</span>
                 <span>Aggiungi l&rsquo;URL del server alla whitelist: <em>Strumenti → Opzioni → Expert Advisor → Consenti WebRequest per i seguenti URL</em>.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-warning-400 font-bold shrink-0">⚠</span>
+                <span><strong>Per importare tutto lo storico:</strong> in MetaTrader, nel tab <em>Storico Conto</em> (Account History), tasto destro → <em>Tutta la cronologia</em>. Senza questo passo l&rsquo;EA vedrà solo i trade del periodo selezionato.</span>
               </li>
             </ul>
             <button

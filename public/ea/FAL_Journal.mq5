@@ -8,6 +8,9 @@
 //|  3. Trascina l'EA su qualsiasi grafico                            |
 //|  4. Vai su Strumenti > Opzioni > Expert Advisor                    |
 //|     → Abilita "Consenti WebRequest" per il tuo gateway URL         |
+//|  5. IMPORTANTE: nel tab "Cronologia" (History) impostare           |
+//|     il periodo su "Tutta la cronologia" (All History)              |
+//|     altrimenti l'EA vedrà solo i trade del periodo selezionato     |
 //+------------------------------------------------------------------+
 #property copyright "FAL Trading Journal"
 #property link      "https://faltrading.com"
@@ -38,6 +41,13 @@ int OnInit()
     Comment("FAL Journal: attivo — sync ogni " + IntegerToString(SyncSeconds) + "s");
     Print("FAL Journal avviato. Account: ", AccountInfoInteger(ACCOUNT_LOGIN),
           " | Token: ", StringSubstr(EAToken, 0, 8), "...");
+
+    // ── Sincronizza SUBITO lo storico deal all'avvio ──
+    // Senza questa chiamata, il primo sync avverrebbe solo dopo SyncSeconds (60s)
+    // e lo storico dei trade non verrebbe importato immediatamente al collegamento.
+    Print("FAL Journal: sincronizzazione iniziale dello storico...");
+    SyncTrades();
+
     return INIT_SUCCEEDED;
 }
 
@@ -48,7 +58,21 @@ void OnDeinit(const int reason)
 }
 
 void OnTimer() { SyncTrades(); }
-void OnTick()  {}
+void OnTick()  { /* Il timer gestisce la sync periodica — OnTick non necessario */ }
+
+//+------------------------------------------------------------------+
+//  Handler eventi di trade (MT5) — sincronizza subito alla chiusura
+//+------------------------------------------------------------------+
+void OnTradeTransaction(
+    const MqlTradeTransaction &trans,
+    const MqlTradeRequest     &request,
+    const MqlTradeResult      &result)
+{
+    // Sincronizza immediatamente quando viene chiusa una posizione,
+    // senza aspettare il prossimo ciclo del timer.
+    if (trans.type == TRADE_TRANSACTION_DEAL_ADD)
+        SyncTrades();
+}
 
 //+------------------------------------------------------------------+
 //  File helper: legge i ticket già inviati

@@ -8,6 +8,9 @@
 //|  3. Trascina l'EA su qualsiasi grafico                            |
 //|  4. Vai su Strumenti > Opzioni > Expert Advisor                    |
 //|     → Abilita "Consenti WebRequest" per il tuo gateway URL         |
+//|  5. IMPORTANTE: nel tab "Storico Conto" (Account History)          |
+//|     tasto destro → "Tutta la cronologia" (All History)             |
+//|     altrimenti l'EA vedrà solo i trade del periodo selezionato     |
 //+------------------------------------------------------------------+
 #property copyright "FAL Trading Journal"
 #property link      "https://faltrading.com"
@@ -19,6 +22,7 @@ input string EAToken     = "%%EA_TOKEN%%";  // Token generato su FAL Trading Jou
 input int    SyncSeconds = 60;              // Intervallo sincronizzazione (secondi)
 
 string SENT_FILE;
+int g_lastHistoryTotal = 0;  // Traccia il conteggio ordini storici per detect nuovi trade
 
 //+------------------------------------------------------------------+
 int OnInit()
@@ -40,6 +44,14 @@ int OnInit()
     Comment("FAL Journal: attivo — sync ogni " + IntegerToString(SyncSeconds) + "s");
     Print("FAL Journal avviato. Account: ", AccountNumber(),
           " | Token: ", StringSubstr(EAToken, 0, 8), "...");
+
+    // ── Sincronizza SUBITO lo storico ordini all'avvio ──
+    // Senza questa chiamata, il primo sync avverrebbe solo dopo SyncSeconds (60s)
+    // e lo storico dei trade non verrebbe importato immediatamente al collegamento.
+    Print("FAL Journal: sincronizzazione iniziale dello storico...");
+    SyncTrades();
+    g_lastHistoryTotal = OrdersHistoryTotal();
+
     return INIT_SUCCEEDED;
 }
 
@@ -50,7 +62,20 @@ void OnDeinit(const int reason)
 }
 
 void OnTimer() { SyncTrades(); }
-void OnTick()  {}
+
+//+------------------------------------------------------------------+
+//  OnTick: rileva nuove chiusure tra un timer e l'altro
+//+------------------------------------------------------------------+
+void OnTick()
+{
+    // Se il numero di ordini nella cronologia è cambiato rispetto all'ultimo controllo,
+    // significa che un trade è stato appena chiuso → sincronizza subito
+    int currentTotal = OrdersHistoryTotal();
+    if (currentTotal != g_lastHistoryTotal) {
+        g_lastHistoryTotal = currentTotal;
+        SyncTrades();
+    }
+}
 
 //+------------------------------------------------------------------+
 //  File helper: legge i ticket già inviati

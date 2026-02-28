@@ -37,7 +37,24 @@ import {
   HelpCircle,
   X,
   Trash2,
+  Rocket,
 } from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  Cell,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+} from "recharts";
 
 const PROVIDERS = [
   { id: "ftmo", label: "FTMO" },
@@ -47,12 +64,79 @@ const PROVIDERS = [
   { id: "lucidtrading", label: "Lucid Trading" },
 ];
 
+// ── SVG gauge helpers ──
+function polarPt(cx: number, cy: number, r: number, deg: number) {
+  const rad = (deg * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy - r * Math.sin(rad) };
+}
+
+function arcSeg(cx: number, cy: number, r: number, a1: number, a2: number) {
+  const s = polarPt(cx, cy, r, a1);
+  const e = polarPt(cx, cy, r, a2);
+  return `M ${s.x.toFixed(2)} ${s.y.toFixed(2)} A ${r} ${r} 0 0 0 ${e.x.toFixed(2)} ${e.y.toFixed(2)}`;
+}
+
+function SemiArcGauge({
+  wins,
+  neutral,
+  losses,
+}: {
+  wins: number;
+  neutral: number;
+  losses: number;
+}) {
+  const total = wins + neutral + losses;
+  const cx = 40, cy = 40, r = 30, sw = 6;
+  const winA = total > 0 ? (wins / total) * 180 : 0;
+  const neuA = total > 0 ? (neutral / total) * 180 : 0;
+  const a1 = 180 - winA;
+  const a2 = a1 - neuA;
+  return (
+    <svg width={80} height={44} viewBox="0 0 80 44" overflow="visible">
+      <path d={arcSeg(cx, cy, r, 180, 0)} fill="none" stroke="#374151" strokeWidth={sw} strokeLinecap="round" />
+      {wins > 0 && <path d={arcSeg(cx, cy, r, 180, a1)} fill="none" stroke="#22c55e" strokeWidth={sw} strokeLinecap="round" />}
+      {neutral > 0 && <path d={arcSeg(cx, cy, r, a1, a2)} fill="none" stroke="#f59e0b" strokeWidth={sw} strokeLinecap="round" />}
+      {losses > 0 && <path d={arcSeg(cx, cy, r, a2, 0)} fill="none" stroke="#ef4444" strokeWidth={sw} strokeLinecap="round" />}
+    </svg>
+  );
+}
+
+function CircleGauge({
+  value,
+  max = 3,
+  color = "#22c55e",
+}: {
+  value: number;
+  max?: number;
+  color?: string;
+}) {
+  const r = 22, cx = 28, cy = 28, sw = 5;
+  const circ = 2 * Math.PI * r;
+  const pct = Math.min(Math.max(value / max, 0), 1);
+  const dash = pct * circ;
+  return (
+    <svg width={56} height={56} viewBox="0 0 56 56">
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#374151" strokeWidth={sw} />
+      <circle
+        cx={cx} cy={cy} r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth={sw}
+        strokeDasharray={`${dash.toFixed(2)} ${circ.toFixed(2)}`}
+        strokeLinecap="round"
+        transform={`rotate(-90 ${cx} ${cy})`}
+      />
+    </svg>
+  );
+}
+
+// ── Dashboard ──
 function DashboardTab({
   connection,
 }: {
   connection: BrokerConnection | null;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -75,7 +159,6 @@ function DashboardTab({
 
   useEffect(() => {
     fetchDashboard();
-    // Auto-refresh every 30s to pick up EA-pushed trades
     const interval = setInterval(fetchDashboard, 30_000);
     return () => clearInterval(interval);
   }, [fetchDashboard]);
@@ -88,10 +171,8 @@ function DashboardTab({
       await api.post(`/api/v1/broker/connections/${connection.id}/sync`);
       await fetchDashboard();
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Sync failed";
+      const msg = err instanceof Error ? err.message : "Sync failed";
       setSyncError(msg);
-      console.error("[Journal] handleSync error:", err);
       setTimeout(() => setSyncError(null), 5000);
     } finally {
       setSyncing(false);
@@ -110,7 +191,7 @@ function DashboardTab({
     );
   }
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="h-8 w-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
@@ -120,192 +201,438 @@ function DashboardTab({
 
   if (!data) return null;
 
-  const kpis = [
+  // ── Derived data ──
+  const kpi = data.kpi;
+  const daily = data.daily_pnl ?? [];
+
+  // Trade win % gauge
+  const totalTrades = kpi.total_trades ?? 0;
+  const winTrades = Math.round(((kpi.win_rate ?? 0) / 100) * totalTrades);
+  const lossTrades = totalTrades - winTrades;
+
+  // Day win % gauge
+  const winDays = daily.filter((d) => (d.total_pnl ?? 0) > 0).length;
+  const neutDays = daily.filter((d) => (d.total_pnl ?? 0) === 0).length;
+  const lossDays = daily.filter((d) => (d.total_pnl ?? 0) < 0).length;
+  const totalDays = winDays + neutDays + lossDays;
+  const dayWinRate =
+    totalDays > 0 ? (winDays / totalDays) * 100 : (kpi.day_win_rate ?? 0);
+
+  // Avg win/loss bar
+  const avgWin = kpi.average_win ?? 0;
+  const avgLoss = Math.abs(kpi.average_loss ?? 0);
+  const awlTotal = avgWin + avgLoss || 1;
+  const avgWinPct = (avgWin / awlTotal) * 100;
+  const avgRatio =
+    kpi.avg_win_loss_ratio ?? (avgLoss > 0 ? avgWin / avgLoss : 0);
+
+  // Profit factor gauge colour
+  const pfColor = (kpi.profit_factor ?? 0) >= 1 ? "#22c55e" : "#ef4444";
+
+  // Zella score (0-100 for each axis)
+  const clamp = (v: number) => Math.min(Math.max(v, 0), 100);
+  const zellaAxes = [
+    { axis: "Win %", value: clamp(kpi.win_rate ?? 0) },
     {
-      label: t("journal.totalPnl"),
-      value: formatPnl(data.kpi.total_pnl ?? 0),
-      color:
-        (data.kpi.total_pnl ?? 0) >= 0 ? "text-success-400" : "text-error-400",
-      icon: TrendingUp,
+      axis: "Profit factor",
+      value: clamp(((kpi.profit_factor ?? 0) / 3) * 100),
+    },
+    { axis: "Avg win/loss", value: clamp((avgWin / awlTotal) * 100) },
+    { axis: "Consistency", value: clamp(dayWinRate) },
+    {
+      axis: "Max drawdown",
+      value: clamp(Math.max(0, 100 - (kpi.max_drawdown ?? 0) * 4)),
     },
     {
-      label: t("journal.winRate"),
-      value: `${(data.kpi.win_rate ?? 0).toFixed(1)}%`,
-      color: (data.kpi.win_rate ?? 0) >= 50 ? "text-success-400" : "text-warning-400",
-      icon: Target,
-    },
-    {
-      label: t("journal.profitFactor"),
-      value: (data.kpi.profit_factor ?? 0).toFixed(2),
-      color:
-        (data.kpi.profit_factor ?? 0) >= 1 ? "text-success-400" : "text-error-400",
-      icon: BarChart3,
-    },
-    {
-      label: t("journal.totalTrades"),
-      value: (data.kpi.total_trades ?? 0).toString(),
-      color: "text-brand-400",
-      icon: Activity,
-    },
-    {
-      label: t("journal.avgWin"),
-      value: `+${(data.kpi.average_win ?? 0).toFixed(2)}`,
-      color: "text-success-400",
-      icon: TrendingUp,
-    },
-    {
-      label: t("journal.avgLoss"),
-      value: (data.kpi.average_loss ?? 0).toFixed(2),
-      color: "text-error-400",
-      icon: TrendingDown,
-    },
-    {
-      label: t("journal.maxDrawdown"),
-      value: `${(data.kpi.max_drawdown ?? 0).toFixed(2)}%`,
-      color: "text-error-400",
-      icon: AlertTriangle,
-    },
-    {
-      label: t("journal.openPositions"),
-      value: (data.open_positions?.length ?? 0).toString(),
-      color: "text-brand-400",
-      icon: Users,
+      axis: "Recovery factor",
+      value: clamp(
+        ((kpi.profit_factor ?? 0) /
+          Math.max(kpi.max_drawdown ?? 0.1, 0.1)) *
+          10
+      ),
     },
   ];
+  const zellaScore =
+    zellaAxes.reduce((s, d) => s + d.value, 0) / zellaAxes.length;
 
-  const maxPnl = Math.max(
-    ...(data.daily_pnl ?? []).map((d) => Math.abs(d.total_pnl ?? 0)),
-    1
-  );
+  // Chart helpers
+  const fmtAxisDate = (d: string) => {
+    const p = d.split("-");
+    return p.length === 3 ? `${p[1]}/${p[2]}` : d;
+  };
+  const chartCumul = daily.map((d) => ({
+    date: fmtAxisDate(d.date),
+    pnl: d.cumulative_pnl ?? 0,
+  }));
+  const chartDaily = daily.map((d) => ({
+    date: fmtAxisDate(d.date),
+    pnl: d.total_pnl ?? 0,
+  }));
+  const fmtUsd = (v: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(v);
+  const lastSync = data.last_sync_at
+    ? formatDateTime(data.last_sync_at, locale)
+    : null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-end gap-3">
-        {syncError && (
-          <span className="flex items-center gap-1.5 text-sm text-error-400">
-            <XCircle className="h-4 w-4 flex-shrink-0" />
-            {syncError}
-          </span>
-        )}
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          className="btn-secondary"
-        >
-          {syncing ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4" />
+    <div className="space-y-5">
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3 text-sm text-surface-400">
+          {lastSync && (
+            <span>
+              Last import:{" "}
+              <span className="text-surface-200">{lastSync}</span>
+            </span>
           )}
-          {t("journal.sync")}
-        </button>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((kpi) => (
-          <div key={kpi.label} className="card">
-            <div className="flex items-center gap-2 mb-1">
-              <kpi.icon className="h-4 w-4 text-surface-500" />
-              <p className="text-xs text-surface-400 uppercase tracking-wide">
-                {kpi.label}
-              </p>
-            </div>
-            <p className={cn("text-xl font-bold", kpi.color)}>{kpi.value}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="card">
-        <h3 className="text-sm font-semibold text-surface-200 mb-4">
-          {t("journal.dailyPnl")}
-        </h3>
-        <div className="flex items-end gap-1 h-40">
-          {(data.daily_pnl ?? []).slice(-30).map((day, idx) => {
-            const heightPercent = Math.max(
-              (Math.abs(day.total_pnl ?? 0) / maxPnl) * 100,
-              2
-            );
-            return (
-              <div
-                key={idx}
-                className="flex-1 flex flex-col justify-end items-center group relative"
-              >
-                <div className="absolute bottom-full mb-1 hidden group-hover:block z-10">
-                  <div className="bg-surface-700 text-surface-100 text-xs rounded px-2 py-1 whitespace-nowrap">
-                    {day.date}: {formatPnl(day.total_pnl)}
-                  </div>
-                </div>
-                <div
-                  className={cn(
-                    "w-full min-w-[4px] rounded-t transition-all",
-                    (day.total_pnl ?? 0) >= 0 ? "bg-success-500" : "bg-error-500"
-                  )}
-                  style={{ height: `${heightPercent}%` }}
-                />
-              </div>
-            );
-          })}
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="flex items-center gap-1 text-brand-400 hover:text-brand-300 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw
+              className={cn("h-3.5 w-3.5", syncing && "animate-spin")}
+            />
+            Resync
+          </button>
+          {syncError && (
+            <span className="flex items-center gap-1 text-error-400">
+              <XCircle className="h-3.5 w-3.5" />
+              {syncError}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold rounded-lg transition-colors">
+            <Rocket className="h-4 w-4" />
+            Start my day
+          </button>
+          <button className="p-2 rounded-full bg-surface-800 hover:bg-surface-700 text-surface-400 transition-colors">
+            <HelpCircle className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
-      <div className="card">
-        <h3 className="text-sm font-semibold text-surface-200 mb-4">
-          {t("journal.recentTrades")}
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-surface-700">
-                <th className="text-left py-2 text-surface-400 font-medium">
-                  {t("journal.symbol")}
-                </th>
-                <th className="text-left py-2 text-surface-400 font-medium">
-                  {t("journal.side")}
-                </th>
-                <th className="text-right py-2 text-surface-400 font-medium">
-                  {t("journal.volume")}
-                </th>
-                <th className="text-right py-2 text-surface-400 font-medium">
-                  {t("journal.pnl")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data.recent_trades ?? []).slice(0, 10).map((trade) => (
-                <tr
-                  key={trade.id}
-                  className="border-b border-surface-700/50"
-                >
-                  <td className="py-2 text-surface-100">{trade.symbol}</td>
-                  <td className="py-2">
-                    <span
-                      className={cn(
-                        "text-xs font-medium px-2 py-0.5 rounded",
-                        trade.side === "buy"
-                          ? "bg-success-500/15 text-success-400"
-                          : "bg-error-500/15 text-error-400"
-                      )}
-                    >
-                      {trade.side.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="py-2 text-right text-surface-300">
-                    {trade.volume}
-                  </td>
-                  <td
-                    className={cn(
-                      "py-2 text-right font-medium",
-                      trade.pnl !== null && trade.pnl >= 0
-                        ? "text-success-400"
-                        : "text-error-400"
-                    )}
-                  >
-                    {trade.pnl !== null ? formatPnl(trade.pnl) : "-"}
-                  </td>
-                </tr>
+      {/* ── 5 KPI cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        {/* Net P&L */}
+        <div className="card relative overflow-hidden">
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-[11px] text-surface-400 uppercase tracking-wide font-medium">
+              Net P&amp;L
+            </span>
+            <HelpCircle className="h-3 w-3 text-surface-600" />
+            <span className="ml-auto text-[10px] bg-surface-700 text-surface-400 px-1.5 py-0.5 rounded-full">
+              {totalTrades}
+            </span>
+          </div>
+          <p
+            className={cn(
+              "text-2xl font-bold",
+              (kpi.total_pnl ?? 0) >= 0 ? "text-teal-400" : "text-error-400"
+            )}
+          >
+            {formatPnl(kpi.total_pnl ?? 0)}
+          </p>
+          <Activity className="absolute bottom-3 right-3 h-7 w-7 text-surface-700/60" />
+        </div>
+
+        {/* Trade win % */}
+        <div className="card flex flex-col">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-[11px] text-surface-400 uppercase tracking-wide font-medium">
+              Trade win %
+            </span>
+            <HelpCircle className="h-3 w-3 text-surface-600" />
+          </div>
+          <p className="text-2xl font-bold text-surface-100 mb-1">
+            {(kpi.win_rate ?? 0).toFixed(2)}%
+          </p>
+          <div className="flex flex-col items-center mt-auto">
+            <SemiArcGauge wins={winTrades} neutral={0} losses={lossTrades} />
+            <div className="flex items-center gap-4 text-[11px] -mt-1">
+              <span className="text-success-400">{winTrades}</span>
+              <span className="text-surface-500">0</span>
+              <span className="text-error-400">{lossTrades}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Profit factor */}
+        <div className="card flex flex-col">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-[11px] text-surface-400 uppercase tracking-wide font-medium">
+              Profit factor
+            </span>
+            <HelpCircle className="h-3 w-3 text-surface-600" />
+          </div>
+          <p
+            className={cn(
+              "text-2xl font-bold mb-1",
+              (kpi.profit_factor ?? 0) >= 1
+                ? "text-surface-100"
+                : "text-error-400"
+            )}
+          >
+            {(kpi.profit_factor ?? 0).toFixed(2)}
+          </p>
+          <div className="flex justify-center mt-auto">
+            <CircleGauge
+              value={kpi.profit_factor ?? 0}
+              max={3}
+              color={pfColor}
+            />
+          </div>
+        </div>
+
+        {/* Day win % */}
+        <div className="card flex flex-col">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-[11px] text-surface-400 uppercase tracking-wide font-medium">
+              Day win %
+            </span>
+            <HelpCircle className="h-3 w-3 text-surface-600" />
+          </div>
+          <p className="text-2xl font-bold text-surface-100 mb-1">
+            {dayWinRate.toFixed(2)}%
+          </p>
+          <div className="flex flex-col items-center mt-auto">
+            <SemiArcGauge
+              wins={winDays}
+              neutral={neutDays}
+              losses={lossDays}
+            />
+            <div className="flex items-center gap-4 text-[11px] -mt-1">
+              <span className="text-success-400">{winDays}</span>
+              <span className="text-warning-400">{neutDays}</span>
+              <span className="text-error-400">{lossDays}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Avg win/loss trade */}
+        <div className="card flex flex-col">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-[11px] text-surface-400 uppercase tracking-wide font-medium">
+              Avg win/loss
+            </span>
+            <HelpCircle className="h-3 w-3 text-surface-600" />
+          </div>
+          <p className="text-2xl font-bold text-surface-100 mb-2">
+            {avgRatio.toFixed(2)}
+          </p>
+          <div className="mt-auto space-y-1.5">
+            <div className="flex overflow-hidden rounded h-2 bg-surface-700">
+              <div
+                className="bg-success-500 transition-all"
+                style={{ width: `${avgWinPct}%` }}
+              />
+              <div
+                className="bg-error-500 transition-all"
+                style={{ width: `${100 - avgWinPct}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-[11px]">
+              <span className="text-success-400">{fmtUsd(avgWin)}</span>
+              <span className="text-error-400">-{fmtUsd(avgLoss)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Bottom 3 panels ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Zella score */}
+        <div className="card flex flex-col">
+          <div className="flex items-center gap-1.5 mb-2">
+            <h3 className="text-sm font-semibold text-surface-200">
+              Zella score
+            </h3>
+            <HelpCircle className="h-3.5 w-3.5 text-surface-600" />
+          </div>
+          <div className="flex-1 min-h-[180px]">
+            <ResponsiveContainer width="100%" height={200}>
+              <RadarChart
+                data={zellaAxes}
+                cx="50%"
+                cy="50%"
+                outerRadius="70%"
+              >
+                <PolarGrid stroke="#374151" />
+                <PolarAngleAxis
+                  dataKey="axis"
+                  tick={{ fill: "#9ca3af", fontSize: 10 }}
+                />
+                <Radar
+                  dataKey="value"
+                  stroke="#818cf8"
+                  fill="#818cf8"
+                  fillOpacity={0.25}
+                  strokeWidth={1.5}
+                />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-2 space-y-1.5">
+            <p className="text-[11px] text-surface-400">Your Zella Score</p>
+            <p className="text-3xl font-bold text-surface-100">
+              {zellaScore.toFixed(2)}
+            </p>
+            <div className="relative h-2 bg-surface-700 rounded-full overflow-hidden">
+              <div
+                className="absolute left-0 top-0 h-full rounded-full"
+                style={{
+                  width: `${zellaScore}%`,
+                  background:
+                    "linear-gradient(90deg,#22c55e 0%,#6366f1 100%)",
+                }}
+              />
+            </div>
+            <div className="flex justify-between text-[10px] text-surface-600">
+              {[0, 20, 40, 60, 80, 100].map((n) => (
+                <span key={n}>{n}</span>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Daily net cumulative P&L */}
+        <div className="card flex flex-col">
+          <div className="flex items-center gap-1.5 mb-2">
+            <h3 className="text-sm font-semibold text-surface-200">
+              Daily net cumulative P&amp;L
+            </h3>
+            <HelpCircle className="h-3.5 w-3.5 text-surface-600" />
+          </div>
+          <div className="flex-1 min-h-[260px]">
+            <ResponsiveContainer width="100%" height={280}>
+              <AreaChart
+                data={chartCumul}
+                margin={{ top: 4, right: 4, bottom: 0, left: 0 }}
+              >
+                <defs>
+                  <linearGradient
+                    id="cumulGrad"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop
+                      offset="5%"
+                      stopColor="#22c55e"
+                      stopOpacity={0.4}
+                    />
+                    <stop
+                      offset="95%"
+                      stopColor="#22c55e"
+                      stopOpacity={0.03}
+                    />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: "#6b7280", fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tick={{ fill: "#6b7280", fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v: number) =>
+                    `$${(v / 1000).toFixed(0)}k`
+                  }
+                  width={44}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "#1f2937",
+                    border: "1px solid #374151",
+                    borderRadius: 6,
+                    fontSize: 12,
+                  }}
+                  labelStyle={{ color: "#9ca3af" }}
+                  formatter={(v: number) => [
+                    formatPnl(v),
+                    "Cumulative P&L",
+                  ]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="pnl"
+                  stroke="#22c55e"
+                  strokeWidth={2}
+                  fill="url(#cumulGrad)"
+                  dot={false}
+                  activeDot={{ r: 4, fill: "#22c55e" }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Net daily P&L */}
+        <div className="card flex flex-col">
+          <div className="flex items-center gap-1.5 mb-2">
+            <h3 className="text-sm font-semibold text-surface-200">
+              Net daily P&amp;L
+            </h3>
+            <HelpCircle className="h-3.5 w-3.5 text-surface-600" />
+          </div>
+          <div className="flex-1 min-h-[260px]">
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart
+                data={chartDaily}
+                margin={{ top: 4, right: 4, bottom: 0, left: 0 }}
+              >
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: "#6b7280", fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tick={{ fill: "#6b7280", fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v: number) =>
+                    `$${(v / 1000).toFixed(0)}k`
+                  }
+                  width={44}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "#1f2937",
+                    border: "1px solid #374151",
+                    borderRadius: 6,
+                    fontSize: 12,
+                  }}
+                  labelStyle={{ color: "#9ca3af" }}
+                  formatter={(v: number) => [formatPnl(v), "Daily P&L"]}
+                />
+                <ReferenceLine
+                  y={0}
+                  stroke="#4b5563"
+                  strokeDasharray="4 3"
+                />
+                <Bar dataKey="pnl" radius={[2, 2, 0, 0]}>
+                  {chartDaily.map((entry, idx) => (
+                    <Cell
+                      key={idx}
+                      fill={(entry.pnl ?? 0) >= 0 ? "#22c55e" : "#ef4444"}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
     </div>

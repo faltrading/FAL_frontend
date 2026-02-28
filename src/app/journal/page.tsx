@@ -1126,8 +1126,15 @@ function ConnectTab({
     setSyncingId(connectionId);
     setSyncFeedback(null);
     try {
-      await api.post(`/api/v1/broker/connections/${connectionId}/sync`);
-      setSyncFeedback({ id: connectionId, ok: true, msg: "Sincronizzazione completata" });
+      const res = await api.post(`/api/v1/broker/connections/${connectionId}/sync`) as {
+        message?: string;
+        trades_synced?: number;
+        ea_pending?: boolean;
+      };
+      const msg = res?.message || "Sincronizzazione completata";
+      // ea_pending means EA-only connection with 0 trades → show as warning, not error
+      const ok = !res?.ea_pending;
+      setSyncFeedback({ id: connectionId, ok, msg });
       onConnectionChange();
     } catch (err) {
       console.error("[Journal] handleSync error:", err);
@@ -1378,16 +1385,20 @@ function ConnectTab({
                 {syncFeedback?.id === conn.id && (
                   <div
                     className={cn(
-                      "flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg",
+                      "flex items-start gap-2 text-xs px-3 py-1.5 rounded-lg",
                       syncFeedback.ok
                         ? "bg-success-500/10 text-success-400"
-                        : "bg-error-500/10 text-error-400"
+                        : syncFeedback.msg.includes("EA")
+                          ? "bg-warning-500/10 text-warning-400"
+                          : "bg-error-500/10 text-error-400"
                     )}
                   >
                     {syncFeedback.ok ? (
-                      <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                      <CheckCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    ) : syncFeedback.msg.includes("EA") ? (
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                     ) : (
-                      <XCircle className="h-3.5 w-3.5 shrink-0" />
+                      <XCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                     )}
                     {syncFeedback.msg}
                   </div>

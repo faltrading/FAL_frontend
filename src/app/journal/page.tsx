@@ -1132,14 +1132,14 @@ function CalendarTab({
                     <div className="mt-auto w-full pt-1">
                       <span
                         className={cn(
-                          "block text-[10px] sm:text-[11px] font-semibold leading-tight truncate",
+                          "block text-sm font-bold leading-tight truncate",
                           stat.total_pnl >= 0 ? "text-success-400" : "text-error-400"
                         )}
                       >
                         {formatPnl(stat.total_pnl)}
                       </span>
-                      <span className="block text-[9px] text-surface-500 leading-tight">
-                        {stat.trade_count ?? 0}t
+                      <span className="block text-[11px] font-medium text-surface-400 leading-tight">
+                        {stat.trade_count ?? 0} trade
                       </span>
                     </div>
                   )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { cn, formatDateTime, formatPnl } from "@/lib/utils";
 import { api } from "@/lib/api";
@@ -23,6 +24,7 @@ import {
   BarChart3,
   Users,
   AlertTriangle,
+  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   Upload,
@@ -131,9 +133,11 @@ function ProfitFactorBar({ value, max = 3 }: { value: number; max?: number }) {
 function DashboardTab({
   connection,
   onImportClick,
+  apiBase = "/api/v1/broker/connections",
 }: {
   connection: BrokerConnection | null;
   onImportClick?: () => void;
+  apiBase?: string;
 }) {
   const { t, locale } = useI18n();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -148,7 +152,7 @@ function DashboardTab({
     setError(null);
     try {
       const res = await api.get<DashboardData>(
-        `/api/v1/broker/connections/${connection.id}/dashboard`
+        `${apiBase}/${connection.id}/dashboard`
       );
       setData(res);
     } catch (err) {
@@ -174,7 +178,7 @@ function DashboardTab({
     setSyncing(true);
     setSyncError(null);
     try {
-      await api.post(`/api/v1/broker/connections/${connection.id}/sync`);
+      await api.post(`${apiBase}/${connection.id}/sync`);
       await fetchDashboard();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Sync failed";
@@ -710,7 +714,7 @@ function DashboardTab({
   );
 }
 
-function TradesTab({ connection, dataSource = "all" }: { connection: BrokerConnection | null; dataSource?: "all" | "csv" | "mt4" | "mt5" }) {
+function TradesTab({ connection, dataSource = "all", apiBase = "/api/v1/broker/connections" }: { connection: BrokerConnection | null; dataSource?: "all" | "csv" | "mt4" | "mt5"; apiBase?: string }) {
   const { t, locale } = useI18n();
   const [trades, setTrades] = useState<BrokerTrade[]>([]);
   const [loading, setLoading] = useState(false);
@@ -721,7 +725,7 @@ function TradesTab({ connection, dataSource = "all" }: { connection: BrokerConne
     setLoading(true);
     api
       .get<{ trades: BrokerTrade[]; total: number }>(
-        `/api/v1/broker/connections/${connection.id}/trades`
+        `${apiBase}/${connection.id}/trades`
       )
       .then((res) => setTrades(Array.isArray(res) ? res : res.trades ?? []))
       .catch((err) => console.error("[Journal] fetchTrades error:", err))
@@ -901,8 +905,10 @@ function TradesTab({ connection, dataSource = "all" }: { connection: BrokerConne
 
 function CalendarTab({
   connection,
+  apiBase = "/api/v1/broker/connections",
 }: {
   connection: BrokerConnection | null;
+  apiBase?: string;
 }) {
   const { t, locale } = useI18n();
   const [stats, setStats] = useState<DailyStat[]>([]);
@@ -915,7 +921,7 @@ function CalendarTab({
     setLoading(true);
     api
       .get<{ stats: DailyStat[]; total: number }>(
-        `/api/v1/broker/connections/${connection.id}/daily-stats`
+        `${apiBase}/${connection.id}/daily-stats`
       )
       .then((res) => setStats(Array.isArray(res) ? res : res.stats ?? []))
       .catch(() => {})
@@ -1748,6 +1754,15 @@ function ConnectTab({
 
 export default function JournalPage() {
   const { t } = useI18n();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const viewUserId = searchParams.get("userId");
+  const viewUsername = searchParams.get("username");
+  const isAdminView = !!viewUserId;
+  const apiBase = isAdminView
+    ? "/api/v1/broker/admin/connections"
+    : "/api/v1/broker/connections";
+
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "trades" | "calendar" | "connect"
   >("dashboard");
@@ -1758,11 +1773,12 @@ export default function JournalPage() {
 
   const fetchConnections = useCallback(async () => {
     try {
-      const data = await api.get<{ connections: BrokerConnection[]; total: number }>(
-        "/api/v1/broker/connections"
-      );
+      const url = isAdminView
+        ? `/api/v1/broker/admin/users/${viewUserId}/connections`
+        : "/api/v1/broker/connections";
+      const data = await api.get<{ connections: BrokerConnection[]; total: number }>(url);
       console.debug("[Journal] fetchConnections result:", data);
-      const list = Array.isArray(data) ? data : data.connections ?? [];
+      const list = Array.isArray(data) ? data : (data as { connections?: BrokerConnection[] }).connections ?? [];
       setConnections(list);
       // Auto-select first active if nothing selected yet
       setSelectedConnectionId((prev) => {
@@ -1775,7 +1791,7 @@ export default function JournalPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdminView, viewUserId]);
 
   useEffect(() => {
     fetchConnections();
@@ -1807,7 +1823,7 @@ export default function JournalPage() {
       icon: CalendarDays,
     },
     { key: "connect" as const, label: t("journal.connect"), icon: Link2 },
-  ];
+  ].filter((tab) => !isAdminView || tab.key !== "connect");
 
   if (loading) {
     return (
@@ -1819,12 +1835,29 @@ export default function JournalPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold text-surface-100 mb-1">
-        {t("journal.title")}
-      </h1>
-      <p className="text-sm text-surface-400 mb-4">
-        {t("journal.subtitle")}
-      </p>
+      {isAdminView ? (
+        <div className="flex items-center gap-3 mb-5">
+          <button onClick={() => router.back()} className="btn-ghost p-2">
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-surface-100">
+              Journal di{" "}
+              <span className="text-brand-400">{viewUsername ?? "utente"}</span>
+            </h1>
+            <p className="text-xs text-surface-500 uppercase tracking-wide mt-0.5">Vista Admin</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <h1 className="text-2xl font-bold text-surface-100 mb-1">
+            {t("journal.title")}
+          </h1>
+          <p className="text-sm text-surface-400 mb-4">
+            {t("journal.subtitle")}
+          </p>
+        </>
+      )}
 
       {/* Connection + source dropdowns */}
       {connections.length > 0 && (
@@ -1884,15 +1917,15 @@ export default function JournalPage() {
       </div>
 
       {activeTab === "dashboard" && (
-        <DashboardTab connection={selectedConnection} onImportClick={() => setActiveTab("connect")} />
+        <DashboardTab connection={selectedConnection} onImportClick={() => setActiveTab("connect")} apiBase={apiBase} />
       )}
       {activeTab === "trades" && (
-        <TradesTab connection={selectedConnection} dataSource={currentSource} />
+        <TradesTab connection={selectedConnection} dataSource={currentSource} apiBase={apiBase} />
       )}
       {activeTab === "calendar" && (
-        <CalendarTab connection={selectedConnection} />
+        <CalendarTab connection={selectedConnection} apiBase={apiBase} />
       )}
-      {activeTab === "connect" && (
+      {!isAdminView && activeTab === "connect" && (
         <ConnectTab
           connections={connections}
           onConnectionChange={fetchConnections}

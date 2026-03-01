@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { api } from "@/lib/api";
@@ -27,6 +28,7 @@ import {
 
 function UsersTab() {
   const { t, locale } = useI18n();
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -80,7 +82,14 @@ function UsersTab() {
           <tbody>
             {filtered.map((u) => (
               <tr key={u.id} className="border-b border-surface-700/50 hover:bg-surface-700/30">
-                <td className="py-3 px-3 text-surface-100">{u.username}</td>
+                <td className="py-3 px-3">
+                  <button
+                    onClick={() => router.push(`/journal?userId=${u.id}&username=${encodeURIComponent(u.username)}`)}
+                    className="text-brand-400 hover:text-brand-300 font-medium hover:underline transition-colors"
+                  >
+                    {u.username}
+                  </button>
+                </td>
                 <td className="py-3 px-3 text-surface-300">{u.email}</td>
                 <td className="py-3 px-3">
                   <span className="badge-brand">{u.role}</span>

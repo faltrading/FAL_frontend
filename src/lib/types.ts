@@ -202,6 +202,9 @@ export interface DailyStat {
   trade_count?: number;
   win_count?: number;
   loss_count?: number;
+  winning_trades?: number;
+  losing_trades?: number;
+  volume?: number;
 }
 
 export interface DashboardRecentTrade {

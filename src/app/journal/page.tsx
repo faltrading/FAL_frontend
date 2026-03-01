@@ -908,6 +908,7 @@ function CalendarTab({
   const [stats, setStats] = useState<DailyStat[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const fetchStats = useCallback(() => {
     if (!connection) return;
@@ -923,55 +924,87 @@ function CalendarTab({
 
   useEffect(() => {
     fetchStats();
-    // Auto-refresh every 30s to pick up EA-pushed trades
     const interval = setInterval(fetchStats, 30_000);
     return () => clearInterval(interval);
   }, [fetchStats]);
 
-  const pnlMap = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const stat of stats) {
-      map[stat.date] = stat.total_pnl;
-    }
+  // Map dateKey → stat
+  const statsMap = useMemo(() => {
+    const map: Record<string, DailyStat> = {};
+    for (const stat of stats) map[stat.date] = stat;
     return map;
   }, [stats]);
 
-  const calendarDays = useMemo(() => {
+  // Week-based calendar grid (same logic as LessonCalendar)
+  const weeks = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const startPad = (firstDay.getDay() + 6) % 7;
-    const days: (number | null)[] = [];
-
-    for (let i = 0; i < startPad; i++) {
-      days.push(null);
+    const first = new Date(year, month, 1);
+    const offset = (first.getDay() + 6) % 7;
+    const gridStart = new Date(year, month, 1 - offset);
+    const result: Date[][] = [];
+    const cur = new Date(gridStart);
+    for (let w = 0; w < 6; w++) {
+      const week: Date[] = [];
+      for (let d = 0; d < 7; d++) {
+        week.push(new Date(cur));
+        cur.setDate(cur.getDate() + 1);
+      }
+      result.push(week);
+      if (cur.getMonth() !== month && w >= 4) break;
     }
-    for (let d = 1; d <= lastDay.getDate(); d++) {
-      days.push(d);
-    }
-    return days;
+    return result;
   }, [currentMonth]);
 
-  const weekdays = useMemo(() => {
-    if (locale === "it") {
-      return ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
-    }
-    return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  }, [locale]);
+  const dayNames = useMemo(() =>
+    locale === "it"
+      ? ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
+      : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+  [locale]);
 
-  const navigateMonth = (direction: number) => {
+  const toKey = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+  const isToday = (date: Date) => {
+    const now = new Date();
+    return date.getDate() === now.getDate() &&
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear();
+  };
+
+  const navigateMonth = (dir: number) => {
     setCurrentMonth((prev) => {
       const d = new Date(prev);
-      d.setMonth(d.getMonth() + direction);
+      d.setMonth(d.getMonth() + dir);
       return d;
     });
+    setSelectedDate(null);
+  };
+
+  const goToToday = () => {
+    setCurrentMonth(new Date());
+    setSelectedDate(new Date());
   };
 
   const monthLabel = currentMonth.toLocaleDateString(
     locale === "it" ? "it-IT" : "en-US",
     { month: "long", year: "numeric" }
   );
+
+  // Monthly summary (only current-month days)
+  const monthStats = useMemo(() => {
+    const prefix = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, "0")}-`;
+    let totalPnl = 0, wins = 0, losses = 0, tradeCount = 0;
+    for (const [key, stat] of Object.entries(statsMap)) {
+      if (key.startsWith(prefix)) {
+        totalPnl += stat.total_pnl;
+        wins += stat.winning_trades ?? 0;
+        losses += stat.losing_trades ?? 0;
+        tradeCount += stat.trade_count ?? 0;
+      }
+    }
+    return { totalPnl, wins, losses, tradeCount };
+  }, [statsMap, currentMonth]);
 
   if (!connection) {
     return (
@@ -991,79 +1024,199 @@ function CalendarTab({
   }
 
   return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={() => navigateMonth(-1)}
-          className="btn-ghost p-2"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <h3 className="text-lg font-semibold text-surface-100 capitalize">
-          {monthLabel}
-        </h3>
-        <button
-          onClick={() => navigateMonth(1)}
-          className="btn-ghost p-2"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
+    <div className="space-y-4">
+      {/* ── Toolbar ── */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-2">
+          <button onClick={() => navigateMonth(-1)} className="btn-ghost p-2">
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <h2 className="text-lg font-semibold text-surface-100 capitalize min-w-[200px] text-center">
+            {monthLabel}
+          </h2>
+          <button onClick={() => navigateMonth(1)} className="btn-ghost p-2">
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <button
+            onClick={goToToday}
+            className="btn-ghost text-xs py-1.5 px-3 ml-1"
+          >
+            {locale === "it" ? "Oggi" : "Today"}
+          </button>
+        </div>
+
+        {/* Monthly summary chips */}
+        <div className="flex items-center gap-2 text-xs">
+          <span className={cn(
+            "font-semibold text-sm",
+            monthStats.totalPnl >= 0 ? "text-success-400" : "text-error-400"
+          )}>
+            {formatPnl(monthStats.totalPnl)}
+          </span>
+          {monthStats.tradeCount > 0 && (
+            <span className="text-surface-500">{monthStats.tradeCount} trades</span>
+          )}
+          {monthStats.wins > 0 && (
+            <span className="px-1.5 py-0.5 rounded bg-success-500/15 text-success-400 font-medium">
+              {monthStats.wins}W
+            </span>
+          )}
+          {monthStats.losses > 0 && (
+            <span className="px-1.5 py-0.5 rounded bg-error-500/15 text-error-400 font-medium">
+              {monthStats.losses}L
+            </span>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
-        {weekdays.map((day) => (
-          <div
-            key={day}
-            className="text-center text-xs font-medium text-surface-500 py-2"
-          >
-            {day}
-          </div>
-        ))}
-        {calendarDays.map((day, idx) => {
-          if (day === null) {
-            return <div key={`empty-${idx}`} className="aspect-square" />;
-          }
-          const year = currentMonth.getFullYear();
-          const month = String(currentMonth.getMonth() + 1).padStart(2, "0");
-          const dayStr = String(day).padStart(2, "0");
-          const dateKey = `${year}-${month}-${dayStr}`;
-          const pnl = pnlMap[dateKey];
-          const hasPnl = pnl !== undefined;
-
-          return (
+      {/* ── Calendar grid ── */}
+      <div className="card p-0 overflow-hidden">
+        {/* Weekday header */}
+        <div className="grid grid-cols-7 border-b border-surface-700">
+          {dayNames.map((name, i) => (
             <div
-              key={dateKey}
+              key={name}
               className={cn(
-                "aspect-square rounded-lg flex flex-col items-center justify-center text-xs transition-colors",
-                hasPnl && pnl >= 0 && "bg-success-500/15",
-                hasPnl && pnl < 0 && "bg-error-500/15",
-                !hasPnl && "bg-surface-900/50"
+                "py-2.5 text-center text-xs font-medium uppercase tracking-wider",
+                i >= 5 ? "text-surface-500" : "text-surface-400"
               )}
             >
-              <span
-                className={cn(
-                  "font-medium",
-                  hasPnl && pnl >= 0 && "text-success-400",
-                  hasPnl && pnl < 0 && "text-error-400",
-                  !hasPnl && "text-surface-500"
-                )}
-              >
-                {day}
-              </span>
-              {hasPnl && (
-                <span
+              {name}
+            </div>
+          ))}
+        </div>
+
+        {/* Day cells */}
+        <div className="grid grid-cols-7">
+          {weeks.flatMap((week) =>
+            week.map((date) => {
+              const key = toKey(date);
+              const stat = statsMap[key];
+              const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
+              const todayFlag = isToday(date);
+              const isSelected = selectedDate && toKey(selectedDate) === key;
+              const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+
+              return (
+                <button
+                  key={key}
+                  onClick={() => setSelectedDate(isSelected ? null : date)}
                   className={cn(
-                    "text-[10px] font-medium mt-0.5",
-                    pnl >= 0 ? "text-success-400" : "text-error-400"
+                    "relative flex flex-col items-start p-1.5 sm:p-2 min-h-[72px] sm:min-h-[90px]",
+                    "border border-surface-700/40 text-left transition-all duration-150",
+                    // base background
+                    isCurrentMonth ? "bg-surface-800/50" : "bg-surface-900/30",
+                    isWeekend && isCurrentMonth && !stat && "bg-surface-900/40",
+                    // P&L tint (only current month)
+                    stat && isCurrentMonth && stat.total_pnl > 0 && "bg-success-500/10",
+                    stat && isCurrentMonth && stat.total_pnl < 0 && "bg-error-500/10",
+                    // selected ring
+                    isSelected && "ring-2 ring-inset ring-brand-500/70 bg-surface-800",
+                    !isSelected && isCurrentMonth && "hover:bg-surface-700/40",
                   )}
                 >
-                  {formatPnl(pnl)}
-                </span>
-              )}
-            </div>
-          );
-        })}
+                  {/* Day number */}
+                  <span
+                    className={cn(
+                      "w-6 h-6 flex items-center justify-center rounded-full text-xs font-medium shrink-0",
+                      todayFlag && "bg-brand-500 text-white",
+                      !todayFlag && isCurrentMonth && "text-surface-200",
+                      !todayFlag && !isCurrentMonth && "text-surface-600",
+                    )}
+                  >
+                    {date.getDate()}
+                  </span>
+
+                  {/* PnL info */}
+                  {stat && isCurrentMonth && (
+                    <div className="mt-auto w-full pt-1">
+                      <span
+                        className={cn(
+                          "block text-[10px] sm:text-[11px] font-semibold leading-tight truncate",
+                          stat.total_pnl >= 0 ? "text-success-400" : "text-error-400"
+                        )}
+                      >
+                        {formatPnl(stat.total_pnl)}
+                      </span>
+                      <span className="block text-[9px] text-surface-500 leading-tight">
+                        {stat.trade_count ?? 0}t
+                      </span>
+                    </div>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
       </div>
+
+      {/* ── Detail panel ── */}
+      {selectedDate && (() => {
+        const key = toKey(selectedDate);
+        const stat = statsMap[key];
+        const dateStr = selectedDate.toLocaleDateString(
+          locale === "it" ? "it-IT" : "en-US",
+          { weekday: "long", day: "numeric", month: "long", year: "numeric" }
+        );
+        const winPct = stat && (stat.trade_count ?? 0) > 0
+          ? ((stat.winning_trades ?? 0) / (stat.trade_count ?? 1)) * 100
+          : 0;
+        return (
+          <div className="card animate-slide-up">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-surface-100 capitalize">{dateStr}</h3>
+              <button
+                onClick={() => setSelectedDate(null)}
+                className="text-surface-400 hover:text-surface-200 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {stat ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-surface-400 uppercase tracking-wide">Net P&amp;L</span>
+                  <span className={cn(
+                    "text-2xl font-bold",
+                    stat.total_pnl >= 0 ? "text-success-400" : "text-error-400"
+                  )}>
+                    {formatPnl(stat.total_pnl)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-surface-400">{stat.trade_count ?? 0} trades</span>
+                  {(stat.winning_trades ?? 0) > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-success-500/15 text-success-400 font-medium">
+                      {stat.winning_trades}W
+                    </span>
+                  )}
+                  {(stat.losing_trades ?? 0) > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-error-500/15 text-error-400 font-medium">
+                      {stat.losing_trades}L
+                    </span>
+                  )}
+                </div>
+                {(stat.trade_count ?? 0) > 0 && (
+                  <div className="h-1.5 bg-surface-700 rounded-full overflow-hidden flex">
+                    <div
+                      className="h-full bg-success-500 transition-all"
+                      style={{ width: `${winPct}%` }}
+                    />
+                    <div
+                      className="h-full bg-error-500 transition-all"
+                      style={{ width: `${100 - winPct}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-surface-500">
+                {locale === "it" ? "Nessun trade in questa data." : "No trades on this day."}
+              </p>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

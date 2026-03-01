@@ -37,7 +37,6 @@ import {
   HelpCircle,
   X,
   Trash2,
-  Rocket,
 } from "lucide-react";
 import {
   AreaChart,
@@ -388,15 +387,7 @@ function DashboardTab({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold rounded-lg transition-colors">
-            <Rocket className="h-4 w-4" />
-            Start my day
-          </button>
-          <button className="p-2 rounded-full bg-surface-800 hover:bg-surface-700 text-surface-400 transition-colors">
-            <HelpCircle className="h-4 w-4" />
-          </button>
-        </div>
+
       </div>
 
       {/* ── 5 KPI cards ── */}

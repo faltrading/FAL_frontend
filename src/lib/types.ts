@@ -189,6 +189,8 @@ export interface BrokerTrade {
   open_time: string;
   close_time: string | null;
   pnl: number | null;
+  commission?: number;
+  swap?: number;
   status: "open" | "closed";
   metadata?: Record<string, unknown>;
 }

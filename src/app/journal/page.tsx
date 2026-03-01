@@ -73,7 +73,7 @@ function polarPt(cx: number, cy: number, r: number, deg: number) {
 function arcSeg(cx: number, cy: number, r: number, a1: number, a2: number) {
   const s = polarPt(cx, cy, r, a1);
   const e = polarPt(cx, cy, r, a2);
-  return `M ${s.x.toFixed(2)} ${s.y.toFixed(2)} A ${r} ${r} 0 0 0 ${e.x.toFixed(2)} ${e.y.toFixed(2)}`;
+  return `M ${s.x.toFixed(2)} ${s.y.toFixed(2)} A ${r} ${r} 0 0 1 ${e.x.toFixed(2)} ${e.y.toFixed(2)}`;
 }
 
 function SemiArcGauge({
@@ -101,32 +101,30 @@ function SemiArcGauge({
   );
 }
 
-function CircleGauge({
-  value,
-  max = 3,
-  color = "#22c55e",
-}: {
-  value: number;
-  max?: number;
-  color?: string;
-}) {
-  const r = 22, cx = 28, cy = 28, sw = 5;
-  const circ = 2 * Math.PI * r;
-  const pct = Math.min(Math.max(value / max, 0), 1);
-  const dash = pct * circ;
+function ProfitFactorBar({ value, max = 3 }: { value: number; max?: number }) {
+  const pct = Math.min(Math.max(value / max, 0), 1) * 100;
   return (
-    <svg width={56} height={56} viewBox="0 0 56 56">
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#374151" strokeWidth={sw} />
-      <circle
-        cx={cx} cy={cy} r={r}
-        fill="none"
-        stroke={color}
-        strokeWidth={sw}
-        strokeDasharray={`${dash.toFixed(2)} ${circ.toFixed(2)}`}
-        strokeLinecap="round"
-        transform={`rotate(-90 ${cx} ${cy})`}
-      />
-    </svg>
+    <div className="w-full space-y-1">
+      <div className="relative h-2 bg-surface-700 rounded-full overflow-hidden">
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(90deg,#ef4444 0%,#ef4444 33%,#f59e0b 33%,#f59e0b 50%,#22c55e 50%,#22c55e 100%)",
+          }}
+        />
+        <div
+          className="absolute inset-y-0 right-0 bg-surface-800 transition-all duration-500 rounded-r-full"
+          style={{ width: `${Math.max(0, 100 - pct)}%` }}
+        />
+      </div>
+      <div className="flex justify-between text-[9px] text-surface-600">
+        <span>0</span>
+        <span>1.0</span>
+        <span>1.5</span>
+        <span>3+</span>
+      </div>
+    </div>
   );
 }
 
@@ -287,8 +285,6 @@ function DashboardTab({
   const avgRatio =
     kpi.avg_win_loss_ratio ?? (avgLoss > 0 ? avgWin / avgLoss : 0);
 
-  // Profit factor gauge colour
-  const pfColor = (kpi.profit_factor ?? 0) >= 1 ? "#22c55e" : "#ef4444";
 
   // Zella score (0-100 for each axis)
   const clamp = (v: number) => Math.min(Math.max(v, 0), 100);
@@ -473,12 +469,9 @@ function DashboardTab({
           )}>
             {(kpi.profit_factor ?? 0).toFixed(2)}
           </p>
-          <div className="flex items-end justify-between mt-auto pt-2">
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-surface-500 uppercase tracking-wide">Target</span>
-              <span className="text-xs text-surface-400">≥ 1.5 good</span>
-            </div>
-            <CircleGauge value={kpi.profit_factor ?? 0} max={3} color={pfColor} />
+          <div className="mt-auto pt-3 space-y-2">
+            <ProfitFactorBar value={kpi.profit_factor ?? 0} max={3} />
+            <span className="text-[10px] text-surface-500">Target: ≥ 1.5 good</span>
           </div>
         </div>
 
@@ -836,7 +829,7 @@ function TradesTab({ connection, dataSource = "all" }: { connection: BrokerConne
                 {t("journal.closeTime")}
               </th>
               <th className="text-right py-2 text-surface-400 font-medium">
-                {t("journal.pnl")}
+                Net P&amp;L
               </th>
             </tr>
           </thead>
@@ -875,12 +868,31 @@ function TradesTab({ connection, dataSource = "all" }: { connection: BrokerConne
                 <td
                   className={cn(
                     "py-2 text-right font-medium",
-                    trade.pnl !== null && trade.pnl >= 0
+                    (trade.pnl ?? 0) + (trade.commission ?? 0) + (trade.swap ?? 0) >= 0
                       ? "text-success-400"
                       : "text-error-400"
                   )}
+                  title={
+                    trade.pnl !== null
+                      ? `Gross: ${formatPnl(trade.pnl)}${
+                          (trade.commission ?? 0) !== 0
+                            ? `  Commission: ${formatPnl(trade.commission ?? 0)}`
+                            : ""
+                        }${
+                          (trade.swap ?? 0) !== 0
+                            ? `  Swap: ${formatPnl(trade.swap ?? 0)}`
+                            : ""
+                        }`
+                      : undefined
+                  }
                 >
-                  {trade.pnl !== null ? formatPnl(trade.pnl) : "-"}
+                  {trade.pnl !== null
+                    ? formatPnl(
+                        (trade.pnl ?? 0) +
+                          (trade.commission ?? 0) +
+                          (trade.swap ?? 0)
+                      )
+                    : "-"}
                 </td>
               </tr>
             ))}

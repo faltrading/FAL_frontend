@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { cn, formatDateTime, formatPnl } from "@/lib/utils";
@@ -67,21 +67,34 @@ const PROVIDERS = [
 
 // ── Info tooltip ──
 function InfoTooltip({ text, className }: { text: string; className?: string }) {
-  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  const show = () => {
+    if (!btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    setPos({ top: r.top + window.scrollY, left: r.left + r.width / 2 + window.scrollX });
+  };
+  const hide = () => setPos(null);
+
   return (
-    <span className="relative inline-flex items-center">
+    <span className="inline-flex items-center">
       <button
+        ref={btnRef}
         type="button"
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-        onClick={() => setOpen((v) => !v)}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        onClick={() => (pos ? hide() : show())}
         className={cn("text-surface-600 hover:text-brand-400 transition-colors focus:outline-none", className)}
         aria-label="Info"
       >
         <HelpCircle className="h-3.5 w-3.5" />
       </button>
-      {open && (
-        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 w-56 rounded-lg bg-surface-800 border border-surface-700 shadow-xl px-3 py-2 text-[11px] text-surface-300 leading-relaxed pointer-events-none whitespace-normal">
+      {pos && typeof window !== "undefined" && (
+        <span
+          className="pointer-events-none fixed z-[9999] w-56 -translate-x-1/2 -translate-y-full rounded-lg bg-surface-800 border border-surface-700 shadow-xl px-3 py-2 text-[11px] text-surface-300 leading-relaxed whitespace-normal"
+          style={{ top: pos.top - 8, left: pos.left }}
+        >
           {text}
           <span className="absolute left-1/2 -translate-x-1/2 top-full border-4 border-transparent border-t-surface-700" />
         </span>
@@ -692,13 +705,14 @@ function DashboardTab({
               >
                 <XAxis
                   dataKey="date"
-                  tick={(props: { x: string | number; y: string | number; payload: { value: string }; index: number }) => {
-                    const entry = chartDaily.find((d) => d.date === props.payload.value);
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  tick={(props: any) => {
+                    const entry = chartDaily.find((d) => d.date === props.payload?.value);
                     const pnl = entry?.pnl ?? 0;
                     const color = pnl > 0 ? "#22c55e" : pnl < 0 ? "#ef4444" : "#6b7280";
                     return (
-                      <text x={props.x} y={props.y + 10} textAnchor="middle" fill={color} fontSize={10}>
-                        {props.payload.value}
+                      <text x={Number(props.x)} y={Number(props.y) + 10} textAnchor="middle" fill={color} fontSize={10}>
+                        {props.payload?.value}
                       </text>
                     );
                   }}

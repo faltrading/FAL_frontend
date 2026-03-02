@@ -65,6 +65,31 @@ const PROVIDERS = [
   { id: "lucidtrading", label: "Lucid Trading" },
 ];
 
+// ── Info tooltip ──
+function InfoTooltip({ text, className }: { text: string; className?: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex items-center">
+      <button
+        type="button"
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onClick={() => setOpen((v) => !v)}
+        className={cn("text-surface-600 hover:text-brand-400 transition-colors focus:outline-none", className)}
+        aria-label="Info"
+      >
+        <HelpCircle className="h-3.5 w-3.5" />
+      </button>
+      {open && (
+        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 w-56 rounded-lg bg-surface-800 border border-surface-700 shadow-xl px-3 py-2 text-[11px] text-surface-300 leading-relaxed pointer-events-none whitespace-normal">
+          {text}
+          <span className="absolute left-1/2 -translate-x-1/2 top-full border-4 border-transparent border-t-surface-700" />
+        </span>
+      )}
+    </span>
+  );
+}
+
 // ── SVG gauge helpers ──
 function polarPt(cx: number, cy: number, r: number, deg: number) {
   const rad = (deg * Math.PI) / 180;
@@ -413,7 +438,7 @@ function DashboardTab({
           )} />
           <div className="relative flex items-center gap-1.5 mb-3">
             <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Net P&amp;L</span>
-            <HelpCircle className="h-3 w-3 text-surface-600" />
+            <InfoTooltip text="Profitto/perdita netto totale su tutti i trade chiusi, commissioni e swap inclusi." />
             <span className="ml-auto text-[10px] bg-surface-700 text-surface-400 px-1.5 py-0.5 rounded-full font-mono">
               {totalTrades}
             </span>
@@ -434,7 +459,7 @@ function DashboardTab({
         <div className="card flex flex-col min-h-[148px]">
           <div className="flex items-center gap-1.5 mb-2">
             <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Trade win %</span>
-            <HelpCircle className="h-3 w-3 text-surface-600" />
+            <InfoTooltip text="Percentuale di trade chiusi in profitto sul totale dei trade chiusi." />
           </div>
           <p className="text-3xl font-bold tracking-tight text-surface-100">
             {(kpi.win_rate ?? 0).toFixed(2)}%
@@ -456,7 +481,7 @@ function DashboardTab({
         <div className="card flex flex-col min-h-[148px]">
           <div className="flex items-center gap-1.5 mb-2">
             <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Profit factor</span>
-            <HelpCircle className="h-3 w-3 text-surface-600" />
+            <InfoTooltip text="Rapporto tra profitto lordo totale e perdita lorda totale. Un valore ≥ 1.5 indica una strategia solida." />
           </div>
           <p className={cn(
             "text-3xl font-bold tracking-tight",
@@ -474,7 +499,7 @@ function DashboardTab({
         <div className="card flex flex-col min-h-[148px]">
           <div className="flex items-center gap-1.5 mb-2">
             <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Day win %</span>
-            <HelpCircle className="h-3 w-3 text-surface-600" />
+            <InfoTooltip text="Percentuale di giornate di trading chiuse con P&L netto positivo." />
           </div>
           <p className="text-3xl font-bold tracking-tight text-surface-100">
             {dayWinRate.toFixed(2)}%
@@ -499,7 +524,7 @@ function DashboardTab({
         <div className="card flex flex-col min-h-[148px]">
           <div className="flex items-center gap-1.5 mb-2">
             <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Avg win/loss</span>
-            <HelpCircle className="h-3 w-3 text-surface-600" />
+            <InfoTooltip text="Rapporto tra la media dei trade vincenti e la media dei trade perdenti. Più è alto, meglio è." />
           </div>
           <p className="text-3xl font-bold tracking-tight text-surface-100">
             {avgRatio.toFixed(2)}
@@ -529,7 +554,7 @@ function DashboardTab({
             <h3 className="text-sm font-semibold text-surface-200">
               Zella score
             </h3>
-            <HelpCircle className="h-3.5 w-3.5 text-surface-600" />
+            <InfoTooltip text="Punteggio composto (0–100) che misura la qualità complessiva del trading, basato su win rate, profit factor, drawdown e consistenza." />
           </div>
           <div className="flex-1 min-h-[180px]">
             <ResponsiveContainer width="100%" height={200}>
@@ -584,7 +609,7 @@ function DashboardTab({
               <h3 className="text-sm font-semibold text-surface-200">
                 Daily net cumulative P&amp;L
               </h3>
-              <HelpCircle className="h-3.5 w-3.5 text-surface-600" />
+              <InfoTooltip text="Somma progressiva del P&L netto giornaliero negli ultimi 30 giorni. Mostra la traiettoria di crescita del conto." />
             </div>
             <span className="text-[10px] text-surface-500 bg-surface-700/60 px-2 py-0.5 rounded-full">
               Last 30 days
@@ -652,7 +677,7 @@ function DashboardTab({
               <h3 className="text-sm font-semibold text-surface-200">
                 Net daily P&amp;L
               </h3>
-              <HelpCircle className="h-3.5 w-3.5 text-surface-600" />
+              <InfoTooltip text="P&L netto di ogni singola giornata di trading negli ultimi 30 giorni. Verde = giornata positiva, rosso = giornata negativa." />
             </div>
             <span className="text-[10px] text-surface-500 bg-surface-700/60 px-2 py-0.5 rounded-full">
               Last 30 days
@@ -667,7 +692,16 @@ function DashboardTab({
               >
                 <XAxis
                   dataKey="date"
-                  tick={{ fill: "#6b7280", fontSize: 10 }}
+                  tick={(props: { x: number; y: number; payload: { value: string }; index: number }) => {
+                    const entry = chartDaily.find((d) => d.date === props.payload.value);
+                    const pnl = entry?.pnl ?? 0;
+                    const color = pnl > 0 ? "#22c55e" : pnl < 0 ? "#ef4444" : "#6b7280";
+                    return (
+                      <text x={props.x} y={props.y + 10} textAnchor="middle" fill={color} fontSize={10}>
+                        {props.payload.value}
+                      </text>
+                    );
+                  }}
                   axisLine={false}
                   tickLine={false}
                   ticks={xTicks}

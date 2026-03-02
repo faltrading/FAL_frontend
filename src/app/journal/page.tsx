@@ -692,13 +692,14 @@ function DashboardTab({
               >
                 <XAxis
                   dataKey="date"
-                  tick={(props: { x: string | number; y: string | number; payload: { value: string }; index: number }) => {
-                    const entry = chartDaily.find((d) => d.date === props.payload.value);
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  tick={(props: any) => {
+                    const entry = chartDaily.find((d) => d.date === props.payload?.value);
                     const pnl = entry?.pnl ?? 0;
                     const color = pnl > 0 ? "#22c55e" : pnl < 0 ? "#ef4444" : "#6b7280";
                     return (
-                      <text x={props.x} y={props.y + 10} textAnchor="middle" fill={color} fontSize={10}>
-                        {props.payload.value}
+                      <text x={Number(props.x)} y={Number(props.y) + 10} textAnchor="middle" fill={color} fontSize={10}>
+                        {props.payload?.value}
                       </text>
                     );
                   }}

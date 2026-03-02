@@ -490,7 +490,7 @@ export default function ProfilePage() {
     <div className="max-w-3xl mx-auto px-4 py-6">
       <h1 className="text-2xl font-bold text-surface-100 mb-6">{t("profile.title")}</h1>
 
-      <div className="flex gap-1 mb-6 border-b border-surface-700">
+      <div className="flex gap-1 mb-6 border-b border-surface-700 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.key}

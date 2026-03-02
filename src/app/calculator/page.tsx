@@ -452,7 +452,7 @@ export default function CalculatorPage() {
         {t("calculator.subtitle")}
       </p>
 
-      <div className="flex gap-1 mb-6 border-b border-surface-700">
+      <div className="flex gap-1 mb-6 border-b border-surface-700 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.key}

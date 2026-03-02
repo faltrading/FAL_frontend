@@ -404,8 +404,8 @@ function DashboardTab({
   return (
     <div className="space-y-5">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 text-sm text-surface-400">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-surface-400 flex-wrap">
           {lastSync && (
             <span>
               Last import:{" "}
@@ -433,11 +433,11 @@ function DashboardTab({
       </div>
 
       {/* ── 5 KPI cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3">
 
         {/* Net P&L */}
         <div className={cn(
-          "card relative overflow-hidden flex flex-col min-h-[148px]",
+          "card relative overflow-hidden flex flex-col min-h-[120px] sm:min-h-[148px]",
           (kpi.total_pnl ?? 0) >= 0
             ? "border border-teal-500/25"
             : "border border-error-500/25"
@@ -449,32 +449,32 @@ function DashboardTab({
               ? "bg-gradient-to-br from-teal-400"
               : "bg-gradient-to-br from-red-500"
           )} />
-          <div className="relative flex items-center gap-1.5 mb-3">
-            <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Net P&amp;L</span>
+          <div className="relative flex items-center gap-1.5 mb-2 sm:mb-3">
+            <span className="text-[10px] sm:text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Net P&amp;L</span>
             <InfoTooltip text="Profitto/perdita netto totale su tutti i trade chiusi, commissioni e swap inclusi." />
             <span className="ml-auto text-[10px] bg-surface-700 text-surface-400 px-1.5 py-0.5 rounded-full font-mono">
               {totalTrades}
             </span>
           </div>
           <p className={cn(
-            "relative text-3xl font-bold tracking-tight",
+            "relative text-xl sm:text-3xl font-bold tracking-tight",
             (kpi.total_pnl ?? 0) >= 0 ? "text-teal-400" : "text-error-400"
           )}>
             {formatPnl(kpi.total_pnl ?? 0)}
           </p>
-          <p className="relative mt-1 text-[11px] text-surface-500">
+          <p className="relative mt-1 text-[10px] sm:text-[11px] text-surface-500">
             {totalTrades} trade{totalTrades !== 1 ? "s" : ""}
           </p>
           <Activity className="absolute bottom-3 right-3 h-8 w-8 text-surface-700/40" />
         </div>
 
         {/* Trade win % */}
-        <div className="card flex flex-col min-h-[148px]">
+        <div className="card flex flex-col min-h-[120px] sm:min-h-[148px]">
           <div className="flex items-center gap-1.5 mb-2">
-            <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Trade win %</span>
+            <span className="text-[10px] sm:text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Trade win %</span>
             <InfoTooltip text="Percentuale di trade chiusi in profitto sul totale dei trade chiusi." />
           </div>
-          <p className="text-3xl font-bold tracking-tight text-surface-100">
+          <p className="text-xl sm:text-3xl font-bold tracking-tight text-surface-100">
             {(kpi.win_rate ?? 0).toFixed(2)}%
           </p>
           <div className="flex items-end justify-between mt-auto pt-2">
@@ -491,13 +491,13 @@ function DashboardTab({
         </div>
 
         {/* Profit factor */}
-        <div className="card flex flex-col min-h-[148px]">
+        <div className="card flex flex-col min-h-[120px] sm:min-h-[148px]">
           <div className="flex items-center gap-1.5 mb-2">
-            <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Profit factor</span>
+            <span className="text-[10px] sm:text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Profit factor</span>
             <InfoTooltip text="Rapporto tra profitto lordo totale e perdita lorda totale. Un valore ≥ 1.5 indica una strategia solida." />
           </div>
           <p className={cn(
-            "text-3xl font-bold tracking-tight",
+            "text-xl sm:text-3xl font-bold tracking-tight",
             (kpi.profit_factor ?? 0) >= 1 ? "text-surface-100" : "text-error-400"
           )}>
             {(kpi.profit_factor ?? 0).toFixed(2)}
@@ -509,12 +509,12 @@ function DashboardTab({
         </div>
 
         {/* Day win % */}
-        <div className="card flex flex-col min-h-[148px]">
+        <div className="card flex flex-col min-h-[120px] sm:min-h-[148px]">
           <div className="flex items-center gap-1.5 mb-2">
-            <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Day win %</span>
+            <span className="text-[10px] sm:text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Day win %</span>
             <InfoTooltip text="Percentuale di giornate di trading chiuse con P&L netto positivo." />
           </div>
-          <p className="text-3xl font-bold tracking-tight text-surface-100">
+          <p className="text-xl sm:text-3xl font-bold tracking-tight text-surface-100">
             {dayWinRate.toFixed(2)}%
           </p>
           <div className="flex items-end justify-between mt-auto pt-2">
@@ -534,15 +534,15 @@ function DashboardTab({
         </div>
 
         {/* Avg win/loss */}
-        <div className="card flex flex-col min-h-[148px]">
+        <div className="card flex flex-col min-h-[120px] sm:min-h-[148px]">
           <div className="flex items-center gap-1.5 mb-2">
-            <span className="text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Avg win/loss</span>
+            <span className="text-[10px] sm:text-[11px] font-semibold text-surface-400 uppercase tracking-widest">Avg win/loss</span>
             <InfoTooltip text="Rapporto tra la media dei trade vincenti e la media dei trade perdenti. Più è alto, meglio è." />
           </div>
-          <p className="text-3xl font-bold tracking-tight text-surface-100">
+          <p className="text-xl sm:text-3xl font-bold tracking-tight text-surface-100">
             {avgRatio.toFixed(2)}
           </p>
-          <div className="mt-auto pt-3 space-y-2">
+          <div className="mt-auto pt-2 sm:pt-3 space-y-2">
             {/* stacked bars */}
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
@@ -560,7 +560,7 @@ function DashboardTab({
       </div>
 
       {/* ── Bottom 3 panels ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
         {/* Zella score */}
         <div className="card flex flex-col">
           <div className="flex items-center gap-1.5 mb-2">
@@ -594,7 +594,7 @@ function DashboardTab({
           </div>
           <div className="mt-2 space-y-1.5">
             <p className="text-[11px] text-surface-400">Your Zella Score</p>
-            <p className="text-3xl font-bold text-surface-100">
+            <p className="text-xl sm:text-3xl font-bold text-surface-100">
               {zellaScore.toFixed(2)}
             </p>
             <div className="relative h-2 bg-surface-700 rounded-full overflow-hidden">
@@ -852,26 +852,26 @@ function TradesTab({ connection, dataSource = "all", apiBase = "/api/v1/broker/c
         </button>
       </div>
 
-      <div className="card overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="card overflow-x-auto -mx-2 sm:mx-0">
+        <table className="w-full text-sm min-w-[600px]">
           <thead>
             <tr className="border-b border-surface-700">
-              <th className="text-left py-2 text-surface-400 font-medium">
+              <th className="text-left py-2 text-surface-400 font-medium whitespace-nowrap">
                 {t("journal.symbol")}
               </th>
-              <th className="text-left py-2 text-surface-400 font-medium">
+              <th className="text-left py-2 text-surface-400 font-medium whitespace-nowrap">
                 {t("journal.side")}
               </th>
-              <th className="text-right py-2 text-surface-400 font-medium">
+              <th className="text-right py-2 text-surface-400 font-medium whitespace-nowrap">
                 {t("journal.volume")}
               </th>
-              <th className="text-left py-2 text-surface-400 font-medium">
+              <th className="text-left py-2 text-surface-400 font-medium whitespace-nowrap">
                 {t("journal.openTime")}
               </th>
-              <th className="text-left py-2 text-surface-400 font-medium">
+              <th className="text-left py-2 text-surface-400 font-medium whitespace-nowrap">
                 {t("journal.closeTime")}
               </th>
-              <th className="text-right py-2 text-surface-400 font-medium">
+              <th className="text-right py-2 text-surface-400 font-medium whitespace-nowrap">
                 Net P&amp;L
               </th>
             </tr>
@@ -900,10 +900,10 @@ function TradesTab({ connection, dataSource = "all", apiBase = "/api/v1/broker/c
                 <td className="py-2 text-right text-surface-300">
                   {trade.volume}
                 </td>
-                <td className="py-2 text-surface-300">
+                <td className="py-2 text-surface-300 whitespace-nowrap">
                   {formatDateTime(trade.open_time, locale)}
                 </td>
-                <td className="py-2 text-surface-300">
+                <td className="py-2 text-surface-300 whitespace-nowrap">
                   {trade.close_time
                     ? formatDateTime(trade.close_time, locale)
                     : "-"}
@@ -1085,7 +1085,7 @@ function CalendarTab({
           <button onClick={() => navigateMonth(-1)} className="btn-ghost p-2">
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <h2 className="text-lg font-semibold text-surface-100 capitalize min-w-[200px] text-center">
+          <h2 className="text-base sm:text-lg font-semibold text-surface-100 capitalize min-w-[140px] sm:min-w-[200px] text-center">
             {monthLabel}
           </h2>
           <button onClick={() => navigateMonth(1)} className="btn-ghost p-2">
@@ -1669,7 +1669,7 @@ function ConnectTab({
                     {/* EA Token row */}
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-surface-500 w-16 shrink-0">Token:</span>
-                      <code className="text-xs font-mono text-brand-300 bg-surface-800 px-2 py-1 rounded select-all">
+                      <code className="text-xs font-mono text-brand-300 bg-surface-800 px-2 py-1 rounded select-all break-all">
                         {eaToken.slice(0, 20)}…
                       </code>
                       <button
@@ -1882,7 +1882,7 @@ export default function JournalPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="max-w-6xl mx-auto sm:px-4 py-4 sm:py-6">
       {isAdminView ? (
         <div className="flex items-center gap-3 mb-5">
           <button onClick={() => router.back()} className="btn-ghost p-2">

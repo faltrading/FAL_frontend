@@ -692,7 +692,7 @@ function DashboardTab({
               >
                 <XAxis
                   dataKey="date"
-                  tick={(props: { x: number; y: number; payload: { value: string }; index: number }) => {
+                  tick={(props: { x: string | number; y: string | number; payload: { value: string }; index: number }) => {
                     const entry = chartDaily.find((d) => d.date === props.payload.value);
                     const pnl = entry?.pnl ?? 0;
                     const color = pnl > 0 ? "#22c55e" : pnl < 0 ? "#ef4444" : "#6b7280";

@@ -25,14 +25,6 @@ const nextConfig = {
       },
     ];
   },
-  async rewrites() {
-    return [
-      {
-        source: "/api/proxy/news",
-        destination: "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
-      },
-    ];
-  },
 };
 
 export default nextConfig;

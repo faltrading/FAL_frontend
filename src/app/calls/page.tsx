@@ -30,7 +30,7 @@ import {
 const JitsiMeet = dynamic(() => import("@/components/calls/JitsiMeet"), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-[60vh] rounded-xl border border-surface-700 bg-surface-950 flex items-center justify-center">
+    <div className="w-full h-[40vh] sm:h-[50vh] md:h-[60vh] rounded-xl border border-surface-700 bg-surface-950 flex items-center justify-center">
       <div className="h-8 w-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
     </div>
   ),
@@ -55,7 +55,7 @@ export default function CallsPage() {
   const [newRoomName, setNewRoomName] = useState("");
   const [inCallMessages, setInCallMessages] = useState<InCallMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
-  const [showParticipants, setShowParticipants] = useState(true);
+  const [showParticipants, setShowParticipants] = useState(false);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -266,11 +266,11 @@ export default function CallsPage() {
       : `https://${activeCall.jitsi_domain}/${activeCall.jitsi_room}`;
 
     return (
-      <div className="flex flex-col h-[calc(100vh-3.5rem)]">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-surface-700 bg-surface-900">
-          <div className="flex items-center gap-3">
-            <Phone className="h-5 w-5 text-brand-400" />
-            <h1 className="text-lg font-semibold text-surface-100">
+      <div className="flex flex-col -m-4 h-[calc(100vh-3.5rem)]">
+        <div className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b border-surface-700 bg-surface-900">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <Phone className="h-5 w-5 text-brand-400 flex-shrink-0" />
+            <h1 className="text-base sm:text-lg font-semibold text-surface-100 truncate">
               {activeCall.call.room_name}
             </h1>
             {connected && (
@@ -310,9 +310,10 @@ export default function CallsPage() {
           </div>
         </div>
 
-        <div className="flex flex-1 min-h-0">
-          <div className="flex-1 flex flex-col min-w-0 p-4 gap-4">
+        <div className="relative flex flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 flex flex-col min-w-0 min-h-0 p-2 sm:p-4 gap-2 sm:gap-4 overflow-y-auto">
             <JitsiMeet
+              className="h-[40vh] sm:h-[50vh] md:h-[60vh] flex-shrink-0"
               domain={activeCall.jitsi_domain}
               roomName={activeCall.jitsi_room}
               jwt={activeCall.jitsi_jwt || undefined}
@@ -320,7 +321,7 @@ export default function CallsPage() {
               onReadyToClose={handleJitsiClose}
             />
 
-            <div className="card flex flex-col flex-1 min-h-[120px]">
+            <div className="card flex flex-col flex-1 min-h-[80px] sm:min-h-[120px]">
               <h3 className="text-sm font-medium text-surface-300 mb-2">
                 {t("calls.chat")}
               </h3>
@@ -358,18 +359,36 @@ export default function CallsPage() {
             </div>
           </div>
 
+          {/* Mobile backdrop */}
+          {showParticipants && (
+            <div
+              className="fixed inset-0 bg-black/50 z-20 md:hidden"
+              onClick={() => setShowParticipants(false)}
+            />
+          )}
+
           <div
             className={cn(
               "w-64 border-l border-surface-700 bg-surface-900 flex-shrink-0 flex flex-col",
-              showParticipants ? "block" : "hidden md:flex"
+              "fixed inset-y-0 right-0 z-30 shadow-xl transition-transform duration-200 ease-in-out",
+              showParticipants ? "translate-x-0" : "translate-x-full",
+              "md:relative md:inset-auto md:z-auto md:shadow-none md:translate-x-0 md:transition-none"
             )}
           >
             <div className="px-4 py-3 border-b border-surface-700">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-surface-400" />
-                <span className="text-sm font-medium text-surface-200">
-                  {t("calls.participants")} ({participants.length})
-                </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-surface-400" />
+                  <span className="text-sm font-medium text-surface-200">
+                    {t("calls.participants")} ({participants.length})
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowParticipants(false)}
+                  className="p-1 rounded text-surface-400 hover:text-surface-100 hover:bg-surface-800 md:hidden"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1">

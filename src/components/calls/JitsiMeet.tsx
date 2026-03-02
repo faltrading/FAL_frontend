@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { ExternalLink, RefreshCw, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 /* global JitsiMeetExternalAPI type (loaded dynamically via script tag) */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -25,6 +26,8 @@ interface JitsiMeetProps {
   }) => void;
   /** Called when a participant leaves */
   onParticipantLeft?: (participant: { id: string }) => void;
+  /** Optional extra CSS classes for the outermost wrapper */
+  className?: string;
 }
 
 type LoadState = "loading" | "ready" | "error";
@@ -37,6 +40,7 @@ export default function JitsiMeet({
   onReadyToClose,
   onParticipantJoined,
   onParticipantLeft,
+  className,
 }: JitsiMeetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<JitsiAPI>(null);
@@ -286,7 +290,10 @@ export default function JitsiMeet({
   };
 
   return (
-    <div className="relative w-full h-[60vh] rounded-xl overflow-hidden border border-surface-700 bg-surface-950">
+    <div className={cn(
+      "relative w-full rounded-xl overflow-hidden border border-surface-700 bg-surface-950",
+      className || "h-[50vh] sm:h-[55vh] md:h-[60vh]"
+    )}>
       {/* Jitsi container — always mounted so the API can attach the iframe */}
       <div ref={containerRef} className="w-full h-full" />
 

@@ -1096,7 +1096,7 @@ export function LessonCalendar({
           <button onClick={prevMonth} className="btn-ghost p-2">
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <h2 className="text-lg font-semibold text-surface-100 capitalize min-w-[180px] text-center">
+          <h2 className="text-base sm:text-lg font-semibold text-surface-100 capitalize min-w-[130px] sm:min-w-[180px] text-center">
             {monthTitle}
           </h2>
           <button onClick={nextMonth} className="btn-ghost p-2">

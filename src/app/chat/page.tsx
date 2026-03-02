@@ -160,7 +160,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)]">
+    <div className="flex -m-4 h-[calc(100vh-3.5rem)]">
       {/* ── Sidebar ── */}
       <div
         className={`w-full md:w-80 md:block flex-shrink-0 border-r border-surface-700 ${

@@ -1539,27 +1539,7 @@ function ConnectTab({
                       )}
                       {t("journal.sync")}
                     </button>
-                    {/* CSV Upload */}
-                    <input
-                      type="file"
-                      accept=".csv"
-                      onChange={(e) => handleCsvUpload(conn.id, e)}
-                      className="hidden"
-                      id={`csv-${conn.id}`}
-                    />
-                    <button
-                      onClick={() => document.getElementById(`csv-${conn.id}`)?.click()}
-                      disabled={uploadingCsvId === conn.id}
-                      className="btn-secondary text-xs py-1.5"
-                    >
-                      {uploadingCsvId === conn.id ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Upload className="h-3.5 w-3.5" />
-                      )}
-                      CSV
-                    </button>
-                    {/* EA Token button (only if no token yet) */}
+                    {/* EA Token button (only if no token yet) */
                     {!eaToken && (
                       <button
                         onClick={() => handleGenerateEaToken(conn.id)}
@@ -1927,22 +1907,7 @@ export default function JournalPage() {
             </select>
           </div>
 
-          {/* Source select */}
-          {selectedConnection && (
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-surface-400 whitespace-nowrap">Origine dati:</label>
-              <select
-                value={currentSource}
-                onChange={(e) => setSource(e.target.value as "all" | "csv" | "mt4" | "mt5")}
-                className="bg-surface-800 border border-surface-600 text-surface-100 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
-              >
-                <option value="all">Tutti</option>
-                <option value="csv">CSV</option>
-                <option value="mt4">MT4</option>
-                <option value="mt5">MT5</option>
-              </select>
-            </div>
-          )}
+
         </div>
       )}
 

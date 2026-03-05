@@ -266,7 +266,7 @@ export default function CallsPage() {
       : `https://${activeCall.jitsi_domain}/${activeCall.jitsi_room}`;
 
     return (
-      <div className="flex flex-col -m-4 h-[calc(100vh-3.5rem)]">
+      <div className="flex flex-col -m-3 sm:-m-4 h-[calc(100dvh-3.5rem)] md:h-[calc(100vh-3.5rem)]">
         <div className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b border-surface-700 bg-surface-900">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Phone className="h-5 w-5 text-brand-400 flex-shrink-0" />
@@ -426,8 +426,8 @@ export default function CallsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-surface-100">
             {t("calls.title")}

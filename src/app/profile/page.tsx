@@ -494,15 +494,15 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold text-surface-100 mb-6">{t("profile.title")}</h1>
+    <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      <h1 className="text-xl sm:text-2xl font-bold text-surface-100 mb-6">{t("profile.title")}</h1>
 
       <div className="flex gap-1 mb-6 border-b border-surface-700 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               activeTab === tab.key
                 ? "border-brand-500 text-brand-400"
                 : "border-transparent text-surface-400 hover:text-surface-200"

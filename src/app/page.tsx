@@ -112,7 +112,7 @@ export default function HomePage() {
 
       <div>
         <h2 className="text-lg font-semibold text-surface-200 mb-3">{t("home.quickActions")}</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-3 sm:gap-4">
           {quickActions.map((action) => (
             <Link key={action.href} href={action.href} className="card hover:bg-surface-700 transition-colors animate-fade-in">
               <div className="flex flex-col items-center gap-2 py-2">
@@ -150,7 +150,7 @@ export default function HomePage() {
                     </div>
                   </div>
                   {booking.notes && (
-                    <p className="text-xs text-surface-400 truncate max-w-[150px]">{booking.notes}</p>
+                    <p className="text-xs text-surface-400 truncate max-w-[120px] sm:max-w-[200px] hidden sm:block">{booking.notes}</p>
                   )}
                 </div>
               </div>

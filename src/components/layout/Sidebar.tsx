@@ -60,7 +60,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               href={item.href}
               onClick={onClose}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors touch-target",
                 isActive
                   ? "bg-surface-700 text-brand-400"
                   : "text-surface-400 hover:text-surface-100 hover:bg-surface-800"
@@ -76,14 +76,14 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       <div className="border-t border-surface-700 p-4 space-y-2">
         <button
           onClick={() => setLocale(locale === "en" ? "it" : "en")}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-surface-400 hover:text-surface-100 hover:bg-surface-800 transition-colors"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-surface-400 hover:text-surface-100 hover:bg-surface-800 transition-colors touch-target"
         >
           <Globe className="h-5 w-5" />
           {locale === "en" ? "EN" : "IT"}
         </button>
         <button
           onClick={logout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-error-400 hover:bg-surface-800 transition-colors"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-error-400 hover:bg-surface-800 transition-colors touch-target"
         >
           <LogOut className="h-5 w-5" />
           {t("nav.logout")}

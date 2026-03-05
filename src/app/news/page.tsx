@@ -155,17 +155,17 @@ export default function NewsPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-surface-100">
+    <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-surface-100">
             {t("news.title")}
           </h1>
           <p className="text-sm text-surface-400 mt-1">{t("news.subtitle")}</p>
         </div>
         <button
           onClick={() => setShowNotificationPanel(!showNotificationPanel)}
-          className="btn-secondary"
+          className="btn-secondary touch-target shrink-0"
         >
           {notifPrefs.enabled ? (
             <Bell className="h-4 w-4 text-brand-400" />
@@ -299,7 +299,7 @@ export default function NewsPage() {
         <div className="space-y-8">
           {Object.entries(groupedByDate).map(([dateLabel, dayEvents]) => (
             <section key={dateLabel}>
-              <h2 className="text-lg font-semibold text-surface-200 mb-3 sticky top-0 bg-surface-950 py-2 z-10">
+              <h2 className="text-base sm:text-lg font-semibold text-surface-200 mb-3 sticky top-14 sm:top-0 bg-surface-950 py-2 z-10">
                 {dateLabel}
               </h2>
               <div className="space-y-3">

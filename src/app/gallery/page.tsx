@@ -270,7 +270,7 @@ function MediaViewer({
       {/* prev / next */}
       {hasPrev && (
         <button
-          className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+          className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors touch-target"
           onClick={(e) => {
             e.stopPropagation();
             onNavigate(files[currentIndex - 1]);
@@ -281,7 +281,7 @@ function MediaViewer({
       )}
       {hasNext && (
         <button
-          className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+          className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors touch-target"
           onClick={(e) => {
             e.stopPropagation();
             onNavigate(files[currentIndex + 1]);
@@ -640,7 +640,7 @@ export default function GalleryPage() {
 
   /* ── render ──────────────────────────────────────────────────────────── */
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-surface-100">
@@ -678,13 +678,13 @@ export default function GalleryPage() {
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-1">
         {categories.map((cat) => (
           <button
             key={cat.key}
             onClick={() => setSelectedCategory(cat.key)}
             className={cn(
-              "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+              "inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap",
               selectedCategory === cat.key
                 ? "bg-brand-500 text-white"
                 : "bg-surface-800 text-surface-300 hover:bg-surface-700",
@@ -706,7 +706,7 @@ export default function GalleryPage() {
           <p className="text-surface-400">{t("gallery.noFiles")}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
           {filteredFiles.map((file) => (
             <FileCard
               key={file.id}

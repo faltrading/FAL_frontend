@@ -40,7 +40,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
       <div className="ml-auto flex items-center gap-3">
         <Link
           href="/profile?tab=notifications"
-          className="relative rounded-lg p-2 text-surface-400 hover:bg-surface-800 hover:text-surface-100"
+          className="relative rounded-lg p-2 touch-target text-surface-400 hover:bg-surface-800 hover:text-surface-100"
           title={t("notifications.title")}
         >
           {pushActive ? (

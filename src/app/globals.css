@@ -12,11 +12,15 @@
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
     @apply bg-surface-950 text-surface-100 font-sans;
     line-height: 1.5;
+    /* Prevent overscroll bounce on iOS */
+    overscroll-behavior: none;
   }
 
   ::selection {
@@ -110,5 +114,34 @@
 
   .badge-error {
     @apply badge bg-error-500/15 text-error-400;
+  }
+
+  /* Touch-friendly tap targets */
+  .touch-target {
+    @apply relative;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Safe area for mobile notch/gesture bar */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+/* Mobile viewport height fix for iOS Safari URL bar */
+@supports (height: 100dvh) {
+  .h-screen-safe {
+    height: 100dvh;
+  }
+}
+
+@supports not (height: 100dvh) {
+  .h-screen-safe {
+    height: 100vh;
   }
 }

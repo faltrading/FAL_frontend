@@ -33,7 +33,7 @@ function AudioPlayer({ src }: { src: string }) {
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
   return (
-    <div className="flex items-center gap-2 w-[220px] mt-1">
+    <div className="flex items-center gap-2 w-[180px] sm:w-[220px] mt-1">
       <button
         type="button"
         onClick={toggle}
@@ -464,7 +464,7 @@ export function MessageArea({
 
       <form
         onSubmit={handleSubmit}
-        className="px-4 py-3 border-t border-surface-700 flex items-center gap-2"
+        className="px-3 sm:px-4 py-3 border-t border-surface-700 flex items-center gap-1.5 sm:gap-2 safe-bottom"
       >
         {/* Hidden file inputs */}
         <input
@@ -498,7 +498,7 @@ export function MessageArea({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading || recording}
-          className="p-2 text-surface-400 hover:text-surface-100 rounded-lg hover:bg-surface-700 transition-colors shrink-0"
+          className="p-2 touch-target text-surface-400 hover:text-surface-100 rounded-lg hover:bg-surface-700 transition-colors shrink-0"
           title="Allega file (immagine, video, PDF, CSV…)"
         >
           <Paperclip className="h-5 w-5" />
@@ -509,7 +509,7 @@ export function MessageArea({
           type="button"
           onClick={() => cameraInputRef.current?.click()}
           disabled={uploading || recording}
-          className="p-2 text-surface-400 hover:text-surface-100 rounded-lg hover:bg-surface-700 transition-colors shrink-0"
+          className="p-2 touch-target text-surface-400 hover:text-surface-100 rounded-lg hover:bg-surface-700 transition-colors shrink-0"
           title="Fotocamera (foto o video)"
         >
           <Camera className="h-5 w-5" />

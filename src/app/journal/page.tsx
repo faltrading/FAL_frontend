@@ -433,7 +433,7 @@ function DashboardTab({
       </div>
 
       {/* ── 5 KPI cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
 
         {/* Net P&L */}
         <div className={cn(
@@ -560,7 +560,7 @@ function DashboardTab({
       </div>
 
       {/* ── Bottom 3 panels ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {/* Zella score */}
         <div className="card flex flex-col">
           <div className="flex items-center gap-1.5 mb-2">
@@ -852,8 +852,8 @@ function TradesTab({ connection, dataSource = "all", apiBase = "/api/v1/broker/c
         </button>
       </div>
 
-      <div className="card overflow-x-auto -mx-2 sm:mx-0">
-        <table className="w-full text-sm min-w-[600px]">
+      <div className="card overflow-x-auto -mx-1 sm:mx-0">
+        <table className="w-full text-xs sm:text-sm min-w-[600px]">
           <thead>
             <tr className="border-b border-surface-700">
               <th className="text-left py-2 text-surface-400 font-medium whitespace-nowrap">
@@ -1888,8 +1888,7 @@ export default function JournalPage() {
       )}
 
       {/* Connection + source dropdowns */}
-      {connections.length > 0 && (
-        <div className="mb-5 flex flex-wrap items-center gap-3">
+      {connections.length > 0 && (\n        <div className=\"mb-5 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3\">", "oldString": "      {connections.length > 0 && (\n        <div className=\"mb-5 flex flex-wrap items-center gap-3\">"
           {/* Connection select */}
           <div className="flex items-center gap-2">
             <label className="text-xs text-surface-400 whitespace-nowrap">Connessione:</label>

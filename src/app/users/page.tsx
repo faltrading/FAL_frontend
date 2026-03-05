@@ -68,21 +68,21 @@ function UsersTab() {
         />
       </div>
 
-      <div className="card overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="card overflow-x-auto -mx-1 sm:mx-0">
+        <table className="w-full text-xs sm:text-sm">
           <thead>
             <tr className="border-b border-surface-700">
-              <th className="text-left py-3 px-3 text-surface-400 font-medium">{t("users.username")}</th>
-              <th className="text-left py-3 px-3 text-surface-400 font-medium">{t("users.email")}</th>
-              <th className="text-left py-3 px-3 text-surface-400 font-medium">{t("users.role")}</th>
-              <th className="text-left py-3 px-3 text-surface-400 font-medium">{t("users.active")}</th>
-              <th className="text-left py-3 px-3 text-surface-400 font-medium">{t("users.createdAt")}</th>
+              <th className="text-left py-3 px-2 sm:px-3 text-surface-400 font-medium">{t("users.username")}</th>
+              <th className="text-left py-3 px-2 sm:px-3 text-surface-400 font-medium hidden sm:table-cell">{t("users.email")}</th>
+              <th className="text-left py-3 px-2 sm:px-3 text-surface-400 font-medium">{t("users.role")}</th>
+              <th className="text-left py-3 px-2 sm:px-3 text-surface-400 font-medium">{t("users.active")}</th>
+              <th className="text-left py-3 px-2 sm:px-3 text-surface-400 font-medium hidden md:table-cell">{t("users.createdAt")}</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((u) => (
               <tr key={u.id} className="border-b border-surface-700/50 hover:bg-surface-700/30">
-                <td className="py-3 px-3">
+                <td className="py-3 px-2 sm:px-3">
                   <button
                     onClick={() => router.push(`/journal?userId=${u.id}&username=${encodeURIComponent(u.username)}`)}
                     className="text-brand-400 hover:text-brand-300 font-medium hover:underline transition-colors"
@@ -90,11 +90,11 @@ function UsersTab() {
                     {u.username}
                   </button>
                 </td>
-                <td className="py-3 px-3 text-surface-300">{u.email}</td>
-                <td className="py-3 px-3">
+                <td className="py-3 px-2 sm:px-3 text-surface-300 hidden sm:table-cell">{u.email}</td>
+                <td className="py-3 px-2 sm:px-3">
                   <span className="badge-brand">{u.role}</span>
                 </td>
-                <td className="py-3 px-3">
+                <td className="py-3 px-2 sm:px-3">
                   <span
                     className={cn(
                       "inline-block h-2.5 w-2.5 rounded-full",
@@ -102,7 +102,7 @@ function UsersTab() {
                     )}
                   />
                 </td>
-                <td className="py-3 px-3 text-surface-400">{formatDate(u.created_at, locale)}</td>
+                <td className="py-3 px-2 sm:px-3 text-surface-400 hidden md:table-cell">{formatDate(u.created_at, locale)}</td>
               </tr>
             ))}
           </tbody>
@@ -349,31 +349,31 @@ function BookingsTab() {
         ))}
       </div>
 
-      <div className="card overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="card overflow-x-auto -mx-1 sm:mx-0">
+        <table className="w-full text-xs sm:text-sm">
           <thead>
             <tr className="border-b border-surface-700">
-              <th className="text-left py-3 px-3 text-surface-400 font-medium">{t("users.username")}</th>
-              <th className="text-left py-3 px-3 text-surface-400 font-medium">{t("users.date")}</th>
-              <th className="text-left py-3 px-3 text-surface-400 font-medium">{t("users.time")}</th>
-              <th className="text-left py-3 px-3 text-surface-400 font-medium">{t("users.status")}</th>
-              <th className="text-left py-3 px-3 text-surface-400 font-medium">{t("users.notes")}</th>
+              <th className="text-left py-3 px-2 sm:px-3 text-surface-400 font-medium">{t("users.username")}</th>
+              <th className="text-left py-3 px-2 sm:px-3 text-surface-400 font-medium">{t("users.date")}</th>
+              <th className="text-left py-3 px-2 sm:px-3 text-surface-400 font-medium">{t("users.time")}</th>
+              <th className="text-left py-3 px-2 sm:px-3 text-surface-400 font-medium">{t("users.status")}</th>
+              <th className="text-left py-3 px-2 sm:px-3 text-surface-400 font-medium hidden sm:table-cell">{t("users.notes")}</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((b) => (
               <tr key={b.id} className="border-b border-surface-700/50 hover:bg-surface-700/30">
-                <td className="py-3 px-3 text-surface-100">{b.username}</td>
-                <td className="py-3 px-3 text-surface-300">{b.booking_date ?? formatDate(b.created_at, locale)}</td>
-                <td className="py-3 px-3 text-surface-300">
+                <td className="py-3 px-2 sm:px-3 text-surface-100">{b.username}</td>
+                <td className="py-3 px-2 sm:px-3 text-surface-300">{b.booking_date ?? formatDate(b.created_at, locale)}</td>
+                <td className="py-3 px-2 sm:px-3 text-surface-300">
                   {b.start_time} – {b.end_time}
                 </td>
-                <td className="py-3 px-3">
+                <td className="py-3 px-2 sm:px-3">
                   <span className={b.status === "confirmed" ? "badge-success" : "badge-error"}>
                     {b.status}
                   </span>
                 </td>
-                <td className="py-3 px-3 text-surface-400 max-w-[200px] truncate">
+                <td className="py-3 px-2 sm:px-3 text-surface-400 max-w-[200px] truncate hidden sm:table-cell">
                   {b.notes || "-"}
                 </td>
               </tr>
@@ -686,8 +686,8 @@ export default function UsersPage() {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold text-surface-100 mb-6">{t("users.title")}</h1>
+    <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      <h1 className="text-xl sm:text-2xl font-bold text-surface-100 mb-6">{t("users.title")}</h1>
 
       <div className="flex gap-1 mb-6 border-b border-surface-700 overflow-x-auto">
         {tabs.map((tab) => (

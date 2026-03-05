@@ -37,7 +37,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <Topbar onMenuToggle={() => setSidebarOpen((prev) => !prev)} />
       <main className="pt-14 lg:ml-60">
-        <div className="p-4">{children}</div>
+        <div className="p-3 sm:p-4 safe-bottom">{children}</div>
       </main>
     </div>
   );

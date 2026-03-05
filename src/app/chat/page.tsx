@@ -171,7 +171,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex -m-4 h-[calc(100vh-3.5rem)]">
+    <div className="flex -m-3 sm:-m-4 h-[calc(100dvh-3.5rem)] md:h-[calc(100vh-3.5rem)]">
       {/* ── Sidebar ── */}
       <div
         className={`w-full md:w-80 md:block flex-shrink-0 border-r border-surface-700 ${
@@ -198,7 +198,7 @@ export default function ChatPage() {
         <div className="flex items-center gap-2 px-3 py-2 border-b border-surface-700 bg-surface-900">
           <button
             onClick={() => setMobileShowMessages(false)}
-            className="p-1 rounded text-surface-400 hover:text-surface-100 md:hidden"
+            className="p-2 rounded text-surface-400 hover:text-surface-100 md:hidden touch-target"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
@@ -215,18 +215,18 @@ export default function ChatPage() {
               {/* Members panel toggle */}
               <button
                 onClick={() => setShowMembersPanel((v) => !v)}
-                className="p-1.5 rounded text-surface-400 hover:text-brand-400 hover:bg-surface-800 transition-colors"
+                className="p-2 rounded text-surface-400 hover:text-brand-400 hover:bg-surface-800 transition-colors touch-target"
                 title={t("chat.members")}
               >
-                <Users className="h-4 w-4" />
+                <Users className="h-5 w-5" />
               </button>
               {/* Leave group */}
               <button
                 onClick={handleLeaveGroup}
-                className="p-1.5 rounded text-surface-400 hover:text-error-400 hover:bg-surface-800 transition-colors"
+                className="p-2 rounded text-surface-400 hover:text-error-400 hover:bg-surface-800 transition-colors touch-target"
                 title={t("chat.leaveGroup")}
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-5 w-5" />
               </button>
             </div>
           )}

@@ -30,9 +30,11 @@ function ProfileTab() {
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [firstName, setFirstName] = useState(user?.first_name || "");
   const [lastName, setLastName] = useState(user?.last_name || "");
+  const [email, setEmail] = useState(user?.email || "");
   const [phoneNumber, setPhoneNumber] = useState(user?.phone_number || "");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
+  const [profileError, setProfileError] = useState("");
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -49,6 +51,7 @@ function ProfileTab() {
     if (user) {
       setFirstName(user.first_name || "");
       setLastName(user.last_name || "");
+      setEmail(user.email || "");
       setPhoneNumber(user.phone_number || "");
     }
   }, [user]);
@@ -56,15 +59,21 @@ function ProfileTab() {
   const handleSaveProfile = async () => {
     setProfileSaving(true);
     setProfileMessage("");
+    setProfileError("");
     try {
       await api.put("/api/v1/users/me", {
         first_name: firstName,
         last_name: lastName,
+        email: email,
         phone_number: phoneNumber,
       });
       await refreshUser();
       setProfileMessage(t("profile.profileUpdated"));
-    } catch {
+    } catch (err: unknown) {
+      const detail = (err as { detail?: string })?.detail;
+      if (detail === "Email already registered") {
+        setProfileError(t("profile.emailAlreadyUsed"));
+      }
     } finally {
       setProfileSaving(false);
     }
@@ -176,6 +185,15 @@ function ProfileTab() {
               />
             </div>
             <div>
+              <label className="label">{t("profile.email")}</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="input-field"
+              />
+            </div>
+            <div>
               <label className="label">{t("profile.phoneNumber")}</label>
               <input
                 type="text"
@@ -188,6 +206,12 @@ function ProfileTab() {
               <div className="flex items-center gap-2 text-sm text-success-400">
                 <CheckCircle className="h-4 w-4" />
                 {profileMessage}
+              </div>
+            )}
+            {profileError && (
+              <div className="flex items-center gap-2 text-sm text-error-400">
+                <AlertTriangle className="h-4 w-4" />
+                {profileError}
               </div>
             )}
             <button

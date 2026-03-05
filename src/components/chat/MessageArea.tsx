@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Send, Pencil, Trash2, Reply, X, MessageSquare, CornerDownRight, Pin, ImageIcon, Mic, Loader2, Video, Paperclip, Camera, FileDown } from "lucide-react";
+import { Send, Pencil, Trash2, Reply, X, MessageSquare, CornerDownRight, Pin, Mic, Loader2, Paperclip, Camera, FileDown, StopCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { cn, formatTime } from "@/lib/utils";
@@ -35,13 +35,15 @@ export function MessageArea({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const audioInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -108,6 +110,35 @@ export function MessageArea({
     } finally {
       setUploading(false);
     }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
+      const mr = new MediaRecorder(stream);
+      mediaRecorderRef.current = mr;
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const file = new File([blob], `recording-${Date.now()}.webm`, { type: "audio/webm" });
+        await handleFileUpload(file);
+        setRecordingDuration(0);
+      };
+      mr.start();
+      setRecording(true);
+      setRecordingDuration(0);
+      recordingIntervalRef.current = setInterval(() => setRecordingDuration((d) => d + 1), 1000);
+    } catch {
+      // user denied mic or not available
+    }
+  };
+
+  const stopRecording = () => {
+    if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
   };
 
   const startReply = (msg: ChatMessage) => {
@@ -364,17 +395,36 @@ export function MessageArea({
         </div>
       )}
 
+      {/* Recording indicator */}
+      {recording && (
+        <div className="px-4 py-2 bg-surface-800 border-t border-surface-700 flex items-center gap-3">
+          <span className="h-2.5 w-2.5 rounded-full bg-error-400 animate-pulse shrink-0" />
+          <span className="text-sm text-error-400 font-medium tabular-nums">
+            {String(Math.floor(recordingDuration / 60)).padStart(2, "0")}:{String(recordingDuration % 60).padStart(2, "0")}
+          </span>
+          <span className="text-xs text-surface-400 flex-1">Registrazione in corso…</span>
+          <button
+            type="button"
+            onClick={stopRecording}
+            className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-error-400 border border-error-400/40 rounded-md hover:bg-error-400/10 transition-colors"
+          >
+            <StopCircle className="h-3.5 w-3.5" />
+            Ferma
+          </button>
+        </div>
+      )}
+
       <form
         onSubmit={handleSubmit}
         className="px-4 py-3 border-t border-surface-700 flex items-center gap-2"
       >
         {/* Hidden file inputs */}
         <input
-          ref={imageInputRef}
+          ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="*/*"
           className="hidden"
-          aria-label="Carica immagine"
+          aria-label="Allega file"
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) handleFileUpload(file);
@@ -384,46 +434,10 @@ export function MessageArea({
         <input
           ref={cameraInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,video/*"
           capture="environment"
           className="hidden"
-          aria-label="Scatta foto"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleFileUpload(file);
-            e.target.value = "";
-          }}
-        />
-        <input
-          ref={audioInputRef}
-          type="file"
-          accept="audio/*"
-          className="hidden"
-          aria-label="Carica audio"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleFileUpload(file);
-            e.target.value = "";
-          }}
-        />
-        <input
-          ref={videoInputRef}
-          type="file"
-          accept="video/*"
-          className="hidden"
-          aria-label="Carica video"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleFileUpload(file);
-            e.target.value = "";
-          }}
-        />
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="*/*"
-          className="hidden"
-          aria-label="Carica file"
+          aria-label="Fotocamera"
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) handleFileUpload(file);
@@ -431,50 +445,42 @@ export function MessageArea({
           }}
         />
 
-        <button
-          type="button"
-          onClick={() => imageInputRef.current?.click()}
-          disabled={uploading}
-          className="p-2 text-surface-400 hover:text-surface-100 rounded-lg hover:bg-surface-700 transition-colors shrink-0"
-          title="Invia immagine"
-        >
-          <ImageIcon className="h-5 w-5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => cameraInputRef.current?.click()}
-          disabled={uploading}
-          className="p-2 text-surface-400 hover:text-surface-100 rounded-lg hover:bg-surface-700 transition-colors shrink-0"
-          title="Scatta foto"
-        >
-          <Camera className="h-5 w-5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => audioInputRef.current?.click()}
-          disabled={uploading}
-          className="p-2 text-surface-400 hover:text-surface-100 rounded-lg hover:bg-surface-700 transition-colors shrink-0"
-          title="Invia audio"
-        >
-          <Mic className="h-5 w-5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => videoInputRef.current?.click()}
-          disabled={uploading}
-          className="p-2 text-surface-400 hover:text-surface-100 rounded-lg hover:bg-surface-700 transition-colors shrink-0"
-          title="Invia video"
-        >
-          <Video className="h-5 w-5" />
-        </button>
+        {/* Allega file (qualunque tipo) */}
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
+          disabled={uploading || recording}
           className="p-2 text-surface-400 hover:text-surface-100 rounded-lg hover:bg-surface-700 transition-colors shrink-0"
-          title="Allega file"
+          title="Allega file (immagine, video, PDF, CSV…)"
         >
           <Paperclip className="h-5 w-5" />
+        </button>
+
+        {/* Fotocamera (foto o video diretto) */}
+        <button
+          type="button"
+          onClick={() => cameraInputRef.current?.click()}
+          disabled={uploading || recording}
+          className="p-2 text-surface-400 hover:text-surface-100 rounded-lg hover:bg-surface-700 transition-colors shrink-0"
+          title="Fotocamera (foto o video)"
+        >
+          <Camera className="h-5 w-5" />
+        </button>
+
+        {/* Microfono — registrazione live */}
+        <button
+          type="button"
+          onClick={recording ? stopRecording : startRecording}
+          disabled={uploading}
+          className={cn(
+            "p-2 rounded-lg transition-colors shrink-0",
+            recording
+              ? "text-error-400 hover:text-error-300 bg-error-400/10 hover:bg-error-400/20"
+              : "text-surface-400 hover:text-surface-100 hover:bg-surface-700"
+          )}
+          title={recording ? "Ferma registrazione" : "Registra audio"}
+        >
+          {recording ? <StopCircle className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
         </button>
 
         <input

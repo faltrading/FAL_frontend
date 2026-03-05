@@ -59,7 +59,6 @@ const config: Config = {
         "slide-up": "slideUp 0.3s ease-out",
         "slide-in-right": "slideInRight 0.3s ease-out",
         "pulse-subtle": "pulseSubtle 2s ease-in-out infinite",
-        "wave-bar": "waveBar 0.8s ease-in-out infinite alternate",
       },
       keyframes: {
         fadeIn: {
@@ -77,10 +76,6 @@ const config: Config = {
         pulseSubtle: {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.7" },
-        },
-        waveBar: {
-          "0%": { transform: "scaleY(0.4)" },
-          "100%": { transform: "scaleY(1)" },
         },
       },
     },

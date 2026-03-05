@@ -477,24 +477,16 @@ export function MessageArea({
         </button>
 
         {recording ? (
-          <div className="flex-1 flex items-center gap-3 px-3 py-2 bg-error-500/10 border border-error-500/20 rounded-lg">
-            <span className="h-2.5 w-2.5 rounded-full bg-error-400 animate-pulse shrink-0" />
-            <span className="text-xs font-semibold tracking-widest text-error-400 shrink-0">REC</span>
-            <span className="text-sm font-mono font-medium tabular-nums text-error-300 shrink-0">
+          <div className="flex-1 flex items-center gap-2.5 px-3 h-10 bg-error-500/10 border border-error-500/25 rounded-lg">
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-error-400 opacity-60" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-error-500" />
+            </span>
+            <span className="text-[11px] font-bold tracking-widest text-error-400 uppercase shrink-0">Rec</span>
+            <span className="text-sm font-mono tabular-nums text-surface-200 shrink-0">
               {String(Math.floor(recordingDuration / 60)).padStart(2, "0")}:{String(recordingDuration % 60).padStart(2, "0")}
             </span>
-            <div className="flex items-end gap-0.5 flex-1 h-5">
-              {[3, 6, 4, 7, 5, 8, 4].map((h, i) => (
-                <span
-                  key={i}
-                  className="w-[3px] rounded-full bg-error-400/70 animate-wave-bar origin-bottom"
-                  style={{
-                    height: `${h * 2}px`,
-                    animationDelay: `${i * 0.1}s`,
-                  }}
-                />
-              ))}
-            </div>
+            <span className="flex-1 text-xs text-surface-500 truncate">Premi stop per inviare</span>
           </div>
         ) : (
           <input

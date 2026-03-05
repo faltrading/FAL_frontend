@@ -85,8 +85,19 @@ export default function ChatPage() {
   });
 
   /* ─── Message handlers ─── */
-  const handleSendMessage = (content: string, replyToId?: string) => {
-    send({ action: "send_message", content, reply_to_id: replyToId || null });
+  const handleSendMessage = (
+    content: string,
+    replyToId?: string,
+    messageType?: string,
+    metadata?: Record<string, unknown>
+  ) => {
+    send({
+      action: "send_message",
+      content,
+      reply_to_id: replyToId || null,
+      message_type: messageType || "text",
+      metadata: metadata || {},
+    });
   };
   const handleEditMessage = (id: string, content: string) => {
     send({ action: "edit_message", message_id: id, content });

@@ -1,17 +1,18 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Send, Pencil, Trash2, Reply, X, MessageSquare, CornerDownRight, Pin } from "lucide-react";
+import { Send, Pencil, Trash2, Reply, X, MessageSquare, CornerDownRight, Pin, ImageIcon, Mic, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { cn, formatTime } from "@/lib/utils";
 import type { ChatGroup, ChatMessage } from "@/lib/types";
 import { GroupInviteCard } from "@/components/chat/GroupInviteCard";
+import { supabase } from "@/lib/supabase";
 
 interface MessageAreaProps {
   messages: ChatMessage[];
   groupId: string | null;
-  onSendMessage: (content: string, replyToId?: string) => void;
+  onSendMessage: (content: string, replyToId?: string, messageType?: string, metadata?: Record<string, unknown>) => void;
   onEditMessage: (id: string, content: string) => void;
   onDeleteMessage: (id: string) => void;
   onPinMessage: (id: string) => void;
@@ -33,8 +34,11 @@ export function MessageArea({
   const [replyToId, setReplyToId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -73,6 +77,27 @@ export function MessageArea({
   const cancelEdit = () => {
     setEditingId(null);
     setInput("");
+  };
+
+  const handleFileUpload = async (file: File, type: "image" | "audio") => {
+    if (!user) return;
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from("chat-media").upload(path, file);
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from("chat-media").getPublicUrl(path);
+      onSendMessage(publicUrl, undefined, type, {
+        file_name: file.name,
+        file_size: file.size,
+        mime_type: file.type,
+      });
+    } catch (err) {
+      console.error("[Chat] File upload error:", err);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const startReply = (msg: ChatMessage) => {
@@ -188,6 +213,21 @@ export function MessageArea({
                   <p className="text-sm text-surface-500 italic">
                     {t("chat.messageDeleted")}
                   </p>
+                ) : msg.message_type === "image" ? (
+                  <a href={msg.content} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={msg.content}
+                      alt={(msg.metadata?.file_name as string) || "image"}
+                      className="max-w-[240px] max-h-[320px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                      loading="lazy"
+                    />
+                  </a>
+                ) : msg.message_type === "audio" ? (
+                  <audio
+                    controls
+                    src={msg.content}
+                    className="max-w-[260px] w-full mt-1"
+                  />
                 ) : (
                   <p className="text-sm text-surface-200 break-words">{msg.content}</p>
                 )}
@@ -238,7 +278,7 @@ export function MessageArea({
                     >
                       <Pin className="h-3.5 w-3.5" />
                     </button>
-                    {isOwn && (
+                    {isOwn && msg.message_type === "text" && (
                       <>
                         <button
                           onClick={() => startEdit(msg)}
@@ -297,6 +337,51 @@ export function MessageArea({
         onSubmit={handleSubmit}
         className="px-4 py-3 border-t border-surface-700 flex items-center gap-2"
       >
+        {/* Hidden file inputs */}
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          className="hidden"
+          aria-label="Carica immagine"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFileUpload(file, "image");
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={audioInputRef}
+          type="file"
+          accept="audio/mpeg,audio/ogg,audio/wav,audio/mp4,audio/aac"
+          className="hidden"
+          aria-label="Carica audio"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFileUpload(file, "audio");
+            e.target.value = "";
+          }}
+        />
+
+        <button
+          type="button"
+          onClick={() => imageInputRef.current?.click()}
+          disabled={uploading}
+          className="p-2 text-surface-400 hover:text-surface-100 rounded-lg hover:bg-surface-700 transition-colors shrink-0"
+          title="Invia immagine"
+        >
+          <ImageIcon className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => audioInputRef.current?.click()}
+          disabled={uploading}
+          className="p-2 text-surface-400 hover:text-surface-100 rounded-lg hover:bg-surface-700 transition-colors shrink-0"
+          title="Invia audio"
+        >
+          <Mic className="h-5 w-5" />
+        </button>
+
         <input
           ref={inputRef}
           type="text"
@@ -304,13 +389,14 @@ export function MessageArea({
           onChange={(e) => setInput(e.target.value)}
           placeholder={t("chat.messagePlaceholder")}
           className="input-field flex-1"
+          disabled={uploading}
         />
         <button
           type="submit"
-          disabled={!input.trim()}
-          className="btn-primary p-2"
+          disabled={!input.trim() || uploading}
+          className="btn-primary p-2 shrink-0"
         >
-          <Send className="h-5 w-5" />
+          {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
         </button>
       </form>
     </div>

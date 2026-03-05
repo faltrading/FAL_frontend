@@ -36,7 +36,9 @@
     "category": "Categoria",
     "yes": "Si",
     "no": "No",
-    "optional": "opzionale"
+    "optional": "opzionale",
+    "admin": "Admin",
+    "unauthorized": "Non autorizzato"
   },
   "nav": {
     "home": "Home",
@@ -74,7 +76,9 @@
     "passwordMismatch": "Le password non corrispondono",
     "consentRequired": "Devi accettare tutti i consensi per continuare",
     "acceptTerms": "Ho letto e accetto i Termini di Servizio",
+    "acceptTermsPrefix": "Ho letto e accetto i",
     "acceptPrivacy": "Ho letto e accetto la Privacy Policy",
+    "acceptPrivacyPrefix": "Ho letto e accetto la",
     "acceptData": "Acconsento al trattamento dei miei dati personali come descritto nella Privacy Policy",
     "termsOfService": "Termini di Servizio",
     "privacyPolicy": "Privacy Policy",

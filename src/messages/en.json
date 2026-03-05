@@ -36,7 +36,9 @@
     "category": "Category",
     "yes": "Yes",
     "no": "No",
-    "optional": "optional"
+    "optional": "optional",
+    "admin": "Admin",
+    "unauthorized": "Unauthorized"
   },
   "nav": {
     "home": "Home",
@@ -74,7 +76,9 @@
     "passwordMismatch": "Passwords do not match",
     "consentRequired": "You must accept all consents to continue",
     "acceptTerms": "I have read and accept the Terms of Service",
+    "acceptTermsPrefix": "I have read and accept the",
     "acceptPrivacy": "I have read and accept the Privacy Policy",
+    "acceptPrivacyPrefix": "I have read and accept the",
     "acceptData": "I consent to the processing of my personal data as described in the Privacy Policy",
     "termsOfService": "Terms of Service",
     "privacyPolicy": "Privacy Policy",

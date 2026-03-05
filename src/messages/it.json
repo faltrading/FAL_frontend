@@ -194,6 +194,8 @@
     "firstName": "Nome",
     "lastName": "Cognome",
     "phoneNumber": "Numero di telefono",
+    "email": "Email",
+    "emailAlreadyUsed": "Questa email e' gia' in uso",
     "changePassword": "Cambia password",
     "currentPassword": "Password attuale",
     "newPassword": "Nuova password",

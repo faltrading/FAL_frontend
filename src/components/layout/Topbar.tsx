@@ -50,7 +50,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
           )}
         </Link>
 
-        <div className="flex items-center gap-2">
+        <Link href="/profile" className="flex items-center gap-2 rounded-lg p-1 hover:bg-surface-800 transition-colors">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500/20 text-sm font-medium text-brand-400">
             {user
               ? getInitials(user.first_name, user.last_name, user.username)
@@ -62,7 +62,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
           {isAdmin && (
             <span className="badge-brand">{t("common.admin")}</span>
           )}
-        </div>
+        </Link>
       </div>
     </header>
   );

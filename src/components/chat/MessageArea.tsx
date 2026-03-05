@@ -7,7 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { cn, formatTime } from "@/lib/utils";
 import type { ChatGroup, ChatMessage } from "@/lib/types";
 import { GroupInviteCard } from "@/components/chat/GroupInviteCard";
-import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 
 interface MessageAreaProps {
   messages: ChatMessage[];
@@ -88,22 +88,23 @@ export function MessageArea({
     if (!user) return;
     setUploading(true);
     try {
-      const type = file.type.startsWith("image/")
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await api.upload<{ url: string; file_name: string; file_size: number; mime_type: string }>(
+        "/api/v1/chat/media/upload",
+        formData
+      );
+      const type = res.mime_type.startsWith("image/")
         ? "image"
-        : file.type.startsWith("audio/")
+        : res.mime_type.startsWith("audio/")
         ? "audio"
-        : file.type.startsWith("video/")
+        : res.mime_type.startsWith("video/")
         ? "video"
         : "file";
-      const ext = file.name.split(".").pop();
-      const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from("chat-media").upload(path, file);
-      if (error) throw error;
-      const { data: { publicUrl } } = supabase.storage.from("chat-media").getPublicUrl(path);
-      onSendMessage(publicUrl, undefined, type, {
-        file_name: file.name,
-        file_size: file.size,
-        mime_type: file.type,
+      onSendMessage(res.url, undefined, type, {
+        file_name: res.file_name,
+        file_size: res.file_size,
+        mime_type: res.mime_type,
       });
     } catch (err) {
       console.error("[Chat] File upload error:", err);

@@ -7,18 +7,32 @@ export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/gallery — list all gallery files (authenticated users)
+ * GET /api/gallery — list gallery files (authenticated users)
+ * Query params:
+ *   folder_id=<uuid>  → files in that folder
+ *   folder_id=root    → files at root level (folder_id IS NULL)
+ *   (omitted)         → all files (backward-compatible)
  */
 export async function GET(req: NextRequest) {
   try {
     const user = await verifyToken(req);
     if (!user) return unauthorized();
 
+    const folderParam = req.nextUrl.searchParams.get("folder_id");
+
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
+    let query = supabase
       .from("gallery_files")
       .select("*")
       .order("created_at", { ascending: false });
+
+    if (folderParam === "root") {
+      query = query.is("folder_id", null);
+    } else if (folderParam) {
+      query = query.eq("folder_id", folderParam);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("[gallery GET] Supabase query error:", error.message);
@@ -46,6 +60,7 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
+    const folderId = (formData.get("folder_id") as string) || null;
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
@@ -92,6 +107,7 @@ export async function POST(req: NextRequest) {
         file_size: file.size,
         category,
         uploaded_by: user.id,
+        folder_id: folderId,
       })
       .select()
       .single();

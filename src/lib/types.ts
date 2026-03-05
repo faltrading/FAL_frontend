@@ -262,4 +262,13 @@ export interface GalleryFile {
   category: string;
   uploaded_by: string;
   created_at: string;
+  folder_id: string | null;
+}
+
+export interface GalleryFolder {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  created_by: string;
+  created_at: string;
 }

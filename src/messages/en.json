@@ -247,6 +247,7 @@
     "uploading": "Uploading…",
     "uploadFiles": "Upload files",
     "noFiles": "No files uploaded",
+    "noFilesInFolder": "This folder is empty",
     "deleteFile": "Delete file",
     "deleteConfirm": "Are you sure you want to delete this file?",
     "uploadSuccess": "File uploaded successfully",
@@ -255,7 +256,19 @@
     "allFiles": "All files",
     "videos": "Videos",
     "documents": "Documents",
-    "images": "Images"
+    "images": "Images",
+    "root": "Gallery",
+    "newFolder": "New folder",
+    "createFolder": "Create folder",
+    "folderName": "Folder name",
+    "folderNamePlaceholder": "E.g.: Weekly Analysis",
+    "deleteFolder": "Delete folder",
+    "deleteFolderConfirm": "Are you sure? All files and subfolders will be deleted.",
+    "renameFolder": "Rename folder",
+    "cancel": "Cancel",
+    "create": "Create",
+    "rename": "Rename",
+    "delete": "Delete"
   },
   "calculator": {
     "title": "Position Size Calculator",

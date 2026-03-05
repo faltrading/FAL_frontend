@@ -247,6 +247,7 @@
     "uploading": "Caricamento…",
     "uploadFiles": "Carica file",
     "noFiles": "Nessun file caricato",
+    "noFilesInFolder": "Questa cartella è vuota",
     "deleteFile": "Elimina file",
     "deleteConfirm": "Sei sicuro di voler eliminare questo file?",
     "uploadSuccess": "File caricato con successo",
@@ -255,7 +256,19 @@
     "allFiles": "Tutti i file",
     "videos": "Video",
     "documents": "Documenti",
-    "images": "Immagini"
+    "images": "Immagini",
+    "root": "Galleria",
+    "newFolder": "Nuova cartella",
+    "createFolder": "Crea cartella",
+    "folderName": "Nome cartella",
+    "folderNamePlaceholder": "Es: Analisi Settimanali",
+    "deleteFolder": "Elimina cartella",
+    "deleteFolderConfirm": "Sei sicuro? Tutti i file e le sottocartelle verranno eliminati.",
+    "renameFolder": "Rinomina cartella",
+    "cancel": "Annulla",
+    "create": "Crea",
+    "rename": "Rinomina",
+    "delete": "Elimina"
   },
   "calculator": {
     "title": "Calcolatore Dimensione Posizione",

@@ -22,12 +22,13 @@ export async function GET(
     let currentId: string | null = id;
 
     while (currentId) {
-      const { data: folder, error } = await supabase
+      const { data, error } = await supabase
         .from("gallery_folders")
         .select("id, name, parent_id")
         .eq("id", currentId)
         .single();
 
+      const folder = data as { id: string; name: string; parent_id: string | null } | null;
       if (error || !folder) break;
 
       breadcrumb.unshift({ id: folder.id, name: folder.name });

@@ -50,7 +50,7 @@ export interface ChatMessage {
   sender_id: string;
   sender_username: string;
   content: string;
-  message_type: "text" | "system" | "announcement" | "image" | "audio";
+  message_type: "text" | "system" | "announcement" | "image" | "audio" | "video" | "file";
   reply_to_id: string | null;
   reply_to_content: string | null;
   reply_to_username: string | null;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Send, Pencil, Trash2, Reply, X, MessageSquare, CornerDownRight, Pin, ImageIcon, Mic, Loader2 } from "lucide-react";
+import { Send, Pencil, Trash2, Reply, X, MessageSquare, CornerDownRight, Pin, ImageIcon, Mic, Loader2, Video, Paperclip, Camera, FileDown } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { cn, formatTime } from "@/lib/utils";
@@ -39,6 +39,9 @@ export function MessageArea({
   const inputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -79,10 +82,17 @@ export function MessageArea({
     setInput("");
   };
 
-  const handleFileUpload = async (file: File, type: "image" | "audio") => {
+  const handleFileUpload = async (file: File) => {
     if (!user) return;
     setUploading(true);
     try {
+      const type = file.type.startsWith("image/")
+        ? "image"
+        : file.type.startsWith("audio/")
+        ? "audio"
+        : file.type.startsWith("video/")
+        ? "video"
+        : "file";
       const ext = file.name.split(".").pop();
       const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       const { error } = await supabase.storage.from("chat-media").upload(path, file);
@@ -228,6 +238,25 @@ export function MessageArea({
                     src={msg.content}
                     className="max-w-[260px] w-full mt-1"
                   />
+                ) : msg.message_type === "video" ? (
+                  <video
+                    controls
+                    src={msg.content}
+                    className="max-w-[280px] rounded-lg mt-1"
+                  />
+                ) : msg.message_type === "file" ? (
+                  <a
+                    href={msg.content}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={(msg.metadata?.file_name as string) || true}
+                    className="flex items-center gap-2 text-sm text-brand-400 hover:text-brand-300 underline underline-offset-2 mt-1"
+                  >
+                    <FileDown className="h-4 w-4 shrink-0" />
+                    <span className="truncate max-w-[200px]">
+                      {(msg.metadata?.file_name as string) || "File"}
+                    </span>
+                  </a>
                 ) : (
                   <p className="text-sm text-surface-200 break-words">{msg.content}</p>
                 )}
@@ -278,14 +307,16 @@ export function MessageArea({
                     >
                       <Pin className="h-3.5 w-3.5" />
                     </button>
-                    {isOwn && msg.message_type === "text" && (
+                    {isOwn && (
                       <>
-                        <button
-                          onClick={() => startEdit(msg)}
-                          className="p-1 text-surface-400 hover:text-surface-100 rounded"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
+                        {msg.message_type === "text" && (
+                          <button
+                            onClick={() => startEdit(msg)}
+                            className="p-1 text-surface-400 hover:text-surface-100 rounded"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => onDeleteMessage(msg.id)}
                           className="p-1 text-surface-400 hover:text-error-400 rounded"
@@ -341,24 +372,61 @@ export function MessageArea({
         <input
           ref={imageInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/gif,image/webp"
+          accept="image/*"
           className="hidden"
           aria-label="Carica immagine"
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) handleFileUpload(file, "image");
+            if (file) handleFileUpload(file);
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          aria-label="Scatta foto"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFileUpload(file);
             e.target.value = "";
           }}
         />
         <input
           ref={audioInputRef}
           type="file"
-          accept="audio/mpeg,audio/ogg,audio/wav,audio/mp4,audio/aac"
+          accept="audio/*"
           className="hidden"
           aria-label="Carica audio"
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) handleFileUpload(file, "audio");
+            if (file) handleFileUpload(file);
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={videoInputRef}
+          type="file"
+          accept="video/*"
+          className="hidden"
+          aria-label="Carica video"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFileUpload(file);
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="*/*"
+          className="hidden"
+          aria-label="Carica file"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFileUpload(file);
             e.target.value = "";
           }}
         />
@@ -374,12 +442,39 @@ export function MessageArea({
         </button>
         <button
           type="button"
+          onClick={() => cameraInputRef.current?.click()}
+          disabled={uploading}
+          className="p-2 text-surface-400 hover:text-surface-100 rounded-lg hover:bg-surface-700 transition-colors shrink-0"
+          title="Scatta foto"
+        >
+          <Camera className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
           onClick={() => audioInputRef.current?.click()}
           disabled={uploading}
           className="p-2 text-surface-400 hover:text-surface-100 rounded-lg hover:bg-surface-700 transition-colors shrink-0"
           title="Invia audio"
         >
           <Mic className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => videoInputRef.current?.click()}
+          disabled={uploading}
+          className="p-2 text-surface-400 hover:text-surface-100 rounded-lg hover:bg-surface-700 transition-colors shrink-0"
+          title="Invia video"
+        >
+          <Video className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="p-2 text-surface-400 hover:text-surface-100 rounded-lg hover:bg-surface-700 transition-colors shrink-0"
+          title="Allega file"
+        >
+          <Paperclip className="h-5 w-5" />
         </button>
 
         <input

@@ -1888,7 +1888,8 @@ export default function JournalPage() {
       )}
 
       {/* Connection + source dropdowns */}
-      {connections.length > 0 && (\n        <div className=\"mb-5 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3\">", "oldString": "      {connections.length > 0 && (\n        <div className=\"mb-5 flex flex-wrap items-center gap-3\">"
+      {connections.length > 0 && (
+        <div className="mb-5 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3">
           {/* Connection select */}
           <div className="flex items-center gap-2">
             <label className="text-xs text-surface-400 whitespace-nowrap">Connessione:</label>

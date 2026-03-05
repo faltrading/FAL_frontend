@@ -1,13 +1,72 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Send, Pencil, Trash2, Reply, X, MessageSquare, CornerDownRight, Pin, Mic, Loader2, Paperclip, Camera, FileDown, StopCircle } from "lucide-react";
+import { Send, Pencil, Trash2, Reply, X, MessageSquare, CornerDownRight, Pin, Mic, Loader2, Paperclip, Camera, FileDown, StopCircle, Play, Pause } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { cn, formatTime } from "@/lib/utils";
 import type { ChatGroup, ChatMessage } from "@/lib/types";
 import { GroupInviteCard } from "@/components/chat/GroupInviteCard";
 import { api } from "@/lib/api";
+
+function AudioPlayer({ src }: { src: string }) {
+  const [playing, setPlaying] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const toggle = () => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (playing) { el.pause(); } else { el.play(); }
+    setPlaying((p) => !p);
+  };
+
+  const seek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const el = audioRef.current;
+    if (!el) return;
+    el.currentTime = Number(e.target.value);
+    setCurrent(Number(e.target.value));
+  };
+
+  const fmt = (s: number) =>
+    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+  return (
+    <div className="flex items-center gap-2 w-[220px] mt-1">
+      <button
+        type="button"
+        onClick={toggle}
+        className="h-8 w-8 rounded-full bg-brand-500/20 hover:bg-brand-500/30 flex items-center justify-center text-brand-400 hover:text-brand-300 transition-colors shrink-0"
+      >
+        {playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 ml-0.5" />}
+      </button>
+      <div className="flex-1 flex flex-col gap-0.5 min-w-0">
+        <input
+          type="range"
+          min={0}
+          max={duration || 100}
+          step={0.1}
+          value={current}
+          onChange={seek}
+          className="w-full h-1 accent-brand-400 cursor-pointer"
+        />
+        <div className="flex justify-between text-[10px] text-surface-500 tabular-nums">
+          <span>{fmt(current)}</span>
+          <span>{fmt(duration)}</span>
+        </div>
+      </div>
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      <audio
+        ref={audioRef}
+        src={src}
+        onTimeUpdate={(e) => setCurrent(e.currentTarget.currentTime)}
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        onEnded={() => { setPlaying(false); setCurrent(0); }}
+      />
+    </div>
+  );
+}
 
 interface MessageAreaProps {
   messages: ChatMessage[];
@@ -269,11 +328,7 @@ export function MessageArea({
                     />
                   </button>
                 ) : msg.message_type === "audio" ? (
-                  <audio
-                    controls
-                    src={msg.content}
-                    className="max-w-[260px] w-full mt-1"
-                  />
+                  <AudioPlayer src={msg.content} />
                 ) : msg.message_type === "video" ? (
                   <button
                     onClick={() => setLightbox({ url: msg.content, type: "video", name: (msg.metadata?.file_name as string) || "video" })}
@@ -477,24 +532,16 @@ export function MessageArea({
         </button>
 
         {recording ? (
-          <div className="flex-1 flex items-center gap-3 px-3 py-2 bg-error-500/10 border border-error-500/20 rounded-lg">
-            <span className="h-2.5 w-2.5 rounded-full bg-error-400 animate-pulse shrink-0" />
-            <span className="text-xs font-semibold tracking-widest text-error-400 shrink-0">REC</span>
-            <span className="text-sm font-mono font-medium tabular-nums text-error-300 shrink-0">
+          <div className="flex-1 flex items-center gap-2.5 px-3 h-10 bg-error-500/10 border border-error-500/25 rounded-lg">
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-error-400 opacity-60" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-error-500" />
+            </span>
+            <span className="text-[11px] font-bold tracking-widest text-error-400 uppercase shrink-0">Rec</span>
+            <span className="text-sm font-mono tabular-nums text-surface-200 shrink-0">
               {String(Math.floor(recordingDuration / 60)).padStart(2, "0")}:{String(recordingDuration % 60).padStart(2, "0")}
             </span>
-            <div className="flex items-end gap-0.5 flex-1 h-5">
-              {[3, 6, 4, 7, 5, 8, 4].map((h, i) => (
-                <span
-                  key={i}
-                  className="w-[3px] rounded-full bg-error-400/70 animate-wave-bar origin-bottom"
-                  style={{
-                    height: `${h * 2}px`,
-                    animationDelay: `${i * 0.1}s`,
-                  }}
-                />
-              ))}
-            </div>
+            <span className="flex-1 text-xs text-surface-500 truncate">Premi stop per inviare</span>
           </div>
         ) : (
           <input

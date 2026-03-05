@@ -463,6 +463,27 @@
     "roomNamePlaceholder": "es. Lezione settimanale",
     "callStarted": "Chiamata avviata — condividi con i partecipanti"
   },
+  "notifications": {
+    "title": "Notifiche",
+    "pushNotifications": "Notifiche Push",
+    "statusEnabled": "Le notifiche sono attive su questo dispositivo",
+    "statusDisabled": "Le notifiche sono disabilitate",
+    "enabledSuccess": "Notifiche abilitate con successo",
+    "enabledError": "Impossibile abilitare le notifiche",
+    "disabledSuccess": "Notifiche disabilitate",
+    "disabledError": "Impossibile disabilitare le notifiche",
+    "permissionDenied": "Il permesso per le notifiche e' stato negato. Abilitalo nelle impostazioni del browser.",
+    "permissionBlocked": "Le notifiche sono bloccate dal browser. Vai nelle impostazioni del sito per consentirle.",
+    "notSupported": "Le notifiche push non sono supportate su questo dispositivo o browser.",
+    "categories": "Categorie di notifica",
+    "newsLabel": "Notizie di Mercato",
+    "newsDescription": "Eventi economici ad alto impatto",
+    "chatLabel": "Messaggi Chat",
+    "chatDescription": "Nuovi messaggi nei tuoi gruppi",
+    "callsLabel": "Stanze Chiamata",
+    "callsDescription": "Nuove stanze di chiamata create",
+    "preferencesSaved": "Preferenze salvate"
+  },
   "legal": {
     "privacyTitle": "Informativa sulla Privacy",
     "termsTitle": "Termini di Servizio",

@@ -50,7 +50,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let data = { title: "FAL Trading", body: "New notification" };
+  let data = { title: "FAL Trading", body: "New notification", url: "/" };
   if (event.data) {
     try {
       data = event.data.json();
@@ -59,25 +59,34 @@ self.addEventListener("push", (event) => {
     }
   }
 
+  const tag = data.tag || "fal-default";
+
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: "/icons/icon-192.svg",
       badge: "/icons/icon-192.svg",
       vibrate: [200, 100, 200],
-      data: data.url || "/",
-      actions: data.actions || [],
+      tag: tag,
+      renotify: true,
+      data: { url: data.url || "/" },
     })
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data || "/";
+  const url = (event.notification.data && event.notification.data.url) || "/";
   event.waitUntil(
-    self.clients.matchAll({ type: "window" }).then((clients) => {
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {
-        if (client.url.includes(url) && "focus" in client) {
+        if (new URL(client.url).pathname === url && "focus" in client) {
+          return client.focus();
+        }
+      }
+      for (const client of clients) {
+        if ("focus" in client) {
+          client.navigate(url);
           return client.focus();
         }
       }

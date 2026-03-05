@@ -463,6 +463,27 @@
     "roomNamePlaceholder": "e.g. Weekly lesson",
     "callStarted": "Call started — share with participants"
   },
+  "notifications": {
+    "title": "Notifications",
+    "pushNotifications": "Push Notifications",
+    "statusEnabled": "Notifications are active on this device",
+    "statusDisabled": "Notifications are disabled",
+    "enabledSuccess": "Notifications enabled successfully",
+    "enabledError": "Could not enable notifications",
+    "disabledSuccess": "Notifications disabled",
+    "disabledError": "Could not disable notifications",
+    "permissionDenied": "Notification permission was denied. Please enable it in your browser settings.",
+    "permissionBlocked": "Notifications are blocked by your browser. Go to site settings to allow them.",
+    "notSupported": "Push notifications are not supported on this device or browser.",
+    "categories": "Notification categories",
+    "newsLabel": "Market News",
+    "newsDescription": "High-impact economic events",
+    "chatLabel": "Chat Messages",
+    "chatDescription": "New messages in your groups",
+    "callsLabel": "Call Rooms",
+    "callsDescription": "New call rooms created",
+    "preferencesSaved": "Preferences saved"
+  },
   "legal": {
     "privacyTitle": "Privacy Policy",
     "termsTitle": "Terms of Service",

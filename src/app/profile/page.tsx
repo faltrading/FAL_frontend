@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { api } from "@/lib/api";
 import { formatDate, getInitials } from "@/lib/utils";
 import type { Booking, Call, JoinCallResponse, PublicDayAvailability, AvailabilityDay } from "@/lib/types";
 import { LessonCalendar, type BookingEvent, type CallEvent } from "@/components/calendar/LessonCalendar";
+import { NotificationSettings } from "@/components/notifications/NotificationSettings";
 import {
   User,
   CalendarDays,
+  Bell,
   Save,
   Lock,
   Download,
@@ -471,7 +474,10 @@ function CalendarTab() {
 export default function ProfilePage() {
   const { user } = useAuth();
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<"profile" | "calendar">("profile");
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const initialTab = (tabParam === "notifications" || tabParam === "calendar") ? tabParam : "profile";
+  const [activeTab, setActiveTab] = useState<"profile" | "calendar" | "notifications">(initialTab);
 
   if (!user) {
     return (
@@ -484,6 +490,7 @@ export default function ProfilePage() {
   const tabs = [
     { key: "profile" as const, label: t("profile.profile"), icon: User },
     { key: "calendar" as const, label: t("profile.calendar"), icon: CalendarDays },
+    { key: "notifications" as const, label: t("notifications.title"), icon: Bell },
   ];
 
   return (
@@ -509,6 +516,7 @@ export default function ProfilePage() {
 
       {activeTab === "profile" && <ProfileTab />}
       {activeTab === "calendar" && <CalendarTab />}
+      {activeTab === "notifications" && <NotificationSettings />}
     </div>
   );
 }

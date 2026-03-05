@@ -99,7 +99,7 @@ async function encryptPayload(
   const nonce = await hkdf(salt, ikm, enc.encode("Content-Encoding: nonce\0"), 12);
 
   const contentKey = await crypto.subtle.importKey("raw", prk, { name: "AES-GCM" }, false, ["encrypt"]);
-  const padded = concatUint8(new Uint8Array([2, 0]), plaintext); // 2-byte padding header
+  const padded = concatUint8(plaintext, new Uint8Array([2])); // plaintext + delimiter (0x02 = final record)
   const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, contentKey, padded));
 
   // aes128gcm header: salt(16) + rs(4) + idlen(1) + keyid(65) + ciphertext

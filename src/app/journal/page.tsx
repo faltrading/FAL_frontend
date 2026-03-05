@@ -1539,7 +1539,7 @@ function ConnectTab({
                       )}
                       {t("journal.sync")}
                     </button>
-                    {/* EA Token button (only if no token yet) */
+                    {/* EA Token button (only if no token yet) */}
                     {!eaToken && (
                       <button
                         onClick={() => handleGenerateEaToken(conn.id)}

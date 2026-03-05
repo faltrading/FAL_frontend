@@ -37,6 +37,7 @@ export function MessageArea({
   const [uploading, setUploading] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [lightbox, setLightbox] = useState<{ url: string; type: "image" | "video"; name: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -256,14 +257,17 @@ export function MessageArea({
                     {t("chat.messageDeleted")}
                   </p>
                 ) : msg.message_type === "image" ? (
-                  <a href={msg.content} target="_blank" rel="noopener noreferrer">
+                  <button
+                    onClick={() => setLightbox({ url: msg.content, type: "image", name: (msg.metadata?.file_name as string) || "image" })}
+                    className="block"
+                  >
                     <img
                       src={msg.content}
                       alt={(msg.metadata?.file_name as string) || "image"}
-                      className="max-w-[240px] max-h-[320px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                      className="max-w-[240px] max-h-[320px] rounded-lg object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
                       loading="lazy"
                     />
-                  </a>
+                  </button>
                 ) : msg.message_type === "audio" ? (
                   <audio
                     controls
@@ -271,16 +275,23 @@ export function MessageArea({
                     className="max-w-[260px] w-full mt-1"
                   />
                 ) : msg.message_type === "video" ? (
-                  <video
-                    controls
-                    src={msg.content}
-                    className="max-w-[280px] rounded-lg mt-1"
-                  />
+                  <button
+                    onClick={() => setLightbox({ url: msg.content, type: "video", name: (msg.metadata?.file_name as string) || "video" })}
+                    className="block relative group/video"
+                  >
+                    <video
+                      src={msg.content}
+                      className="max-w-[240px] rounded-lg mt-1 pointer-events-none"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg opacity-0 group-hover/video:opacity-100 transition-opacity">
+                      <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                        <div className="ml-1 border-t-[8px] border-b-[8px] border-l-[14px] border-t-transparent border-b-transparent border-l-white" />
+                      </div>
+                    </div>
+                  </button>
                 ) : msg.message_type === "file" ? (
                   <a
                     href={msg.content}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     download={(msg.metadata?.file_name as string) || true}
                     className="flex items-center gap-2 text-sm text-brand-400 hover:text-brand-300 underline underline-offset-2 mt-1"
                   >
@@ -396,25 +407,6 @@ export function MessageArea({
         </div>
       )}
 
-      {/* Recording indicator */}
-      {recording && (
-        <div className="px-4 py-2 bg-surface-800 border-t border-surface-700 flex items-center gap-3">
-          <span className="h-2.5 w-2.5 rounded-full bg-error-400 animate-pulse shrink-0" />
-          <span className="text-sm text-error-400 font-medium tabular-nums">
-            {String(Math.floor(recordingDuration / 60)).padStart(2, "0")}:{String(recordingDuration % 60).padStart(2, "0")}
-          </span>
-          <span className="text-xs text-surface-400 flex-1">Registrazione in corso…</span>
-          <button
-            type="button"
-            onClick={stopRecording}
-            className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-error-400 border border-error-400/40 rounded-md hover:bg-error-400/10 transition-colors"
-          >
-            <StopCircle className="h-3.5 w-3.5" />
-            Ferma
-          </button>
-        </div>
-      )}
-
       <form
         onSubmit={handleSubmit}
         className="px-4 py-3 border-t border-surface-700 flex items-center gap-2"
@@ -484,23 +476,80 @@ export function MessageArea({
           {recording ? <StopCircle className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
         </button>
 
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={t("chat.messagePlaceholder")}
-          className="input-field flex-1"
-          disabled={uploading}
-        />
+        {recording ? (
+          <div className="flex-1 flex items-center gap-3 px-3 py-2 bg-error-500/10 border border-error-500/20 rounded-lg">
+            <span className="h-2.5 w-2.5 rounded-full bg-error-400 animate-pulse shrink-0" />
+            <span className="text-xs font-semibold tracking-widest text-error-400 shrink-0">REC</span>
+            <span className="text-sm font-mono font-medium tabular-nums text-error-300 shrink-0">
+              {String(Math.floor(recordingDuration / 60)).padStart(2, "0")}:{String(recordingDuration % 60).padStart(2, "0")}
+            </span>
+            <div className="flex items-end gap-0.5 flex-1 h-5">
+              {[3, 6, 4, 7, 5, 8, 4].map((h, i) => (
+                <span
+                  key={i}
+                  className="w-[3px] rounded-full bg-error-400/70 animate-wave-bar origin-bottom"
+                  style={{
+                    height: `${h * 2}px`,
+                    animationDelay: `${i * 0.1}s`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={t("chat.messagePlaceholder")}
+            className="input-field flex-1"
+            disabled={uploading}
+          />
+        )}
         <button
           type="submit"
-          disabled={!input.trim() || uploading}
+          disabled={(!input.trim() && !recording) || uploading}
           className="btn-primary p-2 shrink-0"
         >
           {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
         </button>
       </form>
+
+      {/* Lightbox modal */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            className="absolute top-4 right-4 p-2 rounded-full bg-surface-800/80 text-surface-200 hover:text-white hover:bg-surface-700 transition-colors"
+            onClick={() => setLightbox(null)}
+            aria-label="Chiudi"
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <div
+            className="max-w-[90vw] max-h-[90vh] flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {lightbox.type === "image" ? (
+              <img
+                src={lightbox.url}
+                alt={lightbox.name}
+                className="max-w-full max-h-[90vh] rounded-lg shadow-2xl object-contain"
+              />
+            ) : (
+              <video
+                src={lightbox.url}
+                controls
+                autoPlay
+                className="max-w-full max-h-[90vh] rounded-lg shadow-2xl"
+              />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
